@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { Event, SearchFilters } from '@/types';
-import { mockEvents } from '@/data/mockData';
+import { getAllEvents } from '@/lib/api';
 import { filterEvents } from '@/lib/utils';
 import SearchForm from '@/components/SearchForm';
 import EventCard from '@/components/EventCard';
@@ -15,17 +15,40 @@ const EventMap = dynamic(() => import('@/components/EventMap'), {
 });
 
 export default function Home() {
-  const [events, setEvents] = useState<Event[]>(mockEvents);
-  const [filteredEvents, setFilteredEvents] = useState<Event[]>(mockEvents);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [filteredEvents, setFilteredEvents] = useState<Event[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Load events on component mount
+  useEffect(() => {
+    const loadEvents = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        // Using the getAllEvents API function with a demo app_id
+        const allEvents = await getAllEvents('demo-app-id');
+        setEvents(allEvents);
+        setFilteredEvents(allEvents);
+      } catch (err) {
+        console.error('Failed to load events:', err);
+        setError('Failed to load events. Please try again later.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadEvents();
+  }, []);
 
   const handleSearch = async (filters: SearchFilters) => {
     setIsLoading(true);
     
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // The filtering is now done client-side, but we simulate API delay
+    // In a real app, this could be server-side filtering
+    await new Promise(resolve => setTimeout(resolve, 300));
     
     const filtered = filterEvents(events, filters);
     setFilteredEvents(filtered);
@@ -90,7 +113,19 @@ export default function Home() {
         </div>
 
         {/* Content */}
-        {isLoading ? (
+        {error ? (
+          <div className="text-center py-12">
+            <div className="text-red-500 dark:text-red-400 text-lg mb-2">
+              {error}
+            </div>
+            <button 
+              onClick={() => window.location.reload()}
+              className="text-blue-600 dark:text-blue-400 hover:underline"
+            >
+              Reload page
+            </button>
+          </div>
+        ) : isLoading ? (
           <div className="flex items-center justify-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
           </div>

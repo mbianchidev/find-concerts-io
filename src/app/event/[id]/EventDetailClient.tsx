@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { Event } from '@/types';
-import { mockEvents } from '@/data/mockData';
+import { getAllEvents } from '@/lib/api';
 import { formatDate, isFavorite, addToFavorites, removeFromFavorites } from '@/lib/utils';
 
 const EventMap = dynamic(() => import('@/components/EventMap'), {
@@ -19,15 +19,35 @@ interface EventDetailClientProps {
 export default function EventDetailClient({ params }: EventDetailClientProps) {
   const [event, setEvent] = useState<Event | null>(null);
   const [isEventFavorite, setIsEventFavorite] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    params.then(({ id }) => {
-      const foundEvent = mockEvents.find(e => e.id === id);
-      setEvent(foundEvent || null);
-      if (foundEvent) {
-        setIsEventFavorite(isFavorite(foundEvent.id));
+    const loadEvent = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        
+        const { id } = await params;
+        // Get all events and find the specific one
+        const allEvents = await getAllEvents('demo-app-id');
+        const foundEvent = allEvents.find(e => e.id === id);
+        
+        setEvent(foundEvent || null);
+        if (foundEvent) {
+          setIsEventFavorite(isFavorite(foundEvent.id));
+        } else {
+          setError('Event not found');
+        }
+      } catch (err) {
+        console.error('Failed to load event:', err);
+        setError('Failed to load event details. Please try again later.');
+      } finally {
+        setIsLoading(false);
       }
-    });
+    };
+
+    loadEvent();
   }, [params]);
 
   const toggleFavorite = () => {
@@ -42,12 +62,23 @@ export default function EventDetailClient({ params }: EventDetailClientProps) {
     }
   };
 
-  if (!event) {
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-300">Loading event details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !event) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-            Event Not Found
+            {error || 'Event Not Found'}
           </h1>
           <Link 
             href="/"
