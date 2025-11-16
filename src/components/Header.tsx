@@ -1,38 +1,61 @@
 'use client';
 
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+
 export default function Header() {
+  const pathname = usePathname();
+
+  const isActive = (path: string) => {
+    return pathname === path;
+  };
+
   return (
     <header className="bg-white shadow-sm border-b">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <h1 className="text-2xl font-bold text-blue-600">
-                Find Concerts
-              </h1>
+              <Link href="/">
+                <h1 className="text-2xl font-bold text-blue-600 cursor-pointer">
+                  Find Concerts
+                </h1>
+              </Link>
             </div>
           </div>
           
           <nav className="hidden md:block">
             <div className="ml-10 flex items-baseline space-x-4">
-              <a
-                href="#"
-                className="text-gray-800 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
+              <Link
+                href="/"
+                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  isActive('/') 
+                    ? 'text-blue-600 bg-blue-50' 
+                    : 'text-gray-600 hover:text-blue-600'
+                }`}
               >
                 Concerts
-              </a>
-              <a
-                href="#"
-                className="text-gray-600 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
+              </Link>
+              <Link
+                href="/artists"
+                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  isActive('/artists') 
+                    ? 'text-blue-600 bg-blue-50' 
+                    : 'text-gray-600 hover:text-blue-600'
+                }`}
               >
                 Artists
-              </a>
-              <a
-                href="#"
-                className="text-gray-600 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
+              </Link>
+              <Link
+                href="/venues"
+                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  isActive('/venues') 
+                    ? 'text-blue-600 bg-blue-50' 
+                    : 'text-gray-600 hover:text-blue-600'
+                }`}
               >
                 Venues
-              </a>
+              </Link>
             </div>
           </nav>
 

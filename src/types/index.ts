@@ -43,3 +43,22 @@ export interface SearchFilters {
   date?: string;
   genre?: string;
 }
+
+export interface VenueData extends Venue {
+  id: string;
+  description?: string;
+  capacity?: number;
+  image_url?: string;
+}
+
+export interface WatchlistItem {
+  id: string;
+  type: 'artist' | 'venue';
+  addedAt: string;
+}
+
+export interface WishlistItem {
+  id: string;
+  type: 'event';
+  addedAt: string;
+}

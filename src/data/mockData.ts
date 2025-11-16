@@ -1,4 +1,4 @@
-import { Event, Artist } from '@/types';
+import { Event, Artist, VenueData } from '@/types';
 
 export const mockArtists: Artist[] = [
   {
@@ -33,6 +33,69 @@ export const mockArtists: Artist[] = [
     mbid: 'c14b4180-dc87-481e-b17a-64e4150f90f6',
     tracker_count: 320000,
     upcoming_event_count: 18
+  }
+];
+
+export const mockVenues: VenueData[] = [
+  {
+    id: '1',
+    name: 'Madison Square Garden',
+    latitude: '40.7505',
+    longitude: '-73.9934',
+    city: 'New York',
+    region: 'NY',
+    country: 'United States',
+    description: 'The World\'s Most Famous Arena',
+    capacity: 20789,
+    image_url: 'https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=500&h=300&fit=crop'
+  },
+  {
+    id: '2',
+    name: 'The Forum',
+    latitude: '33.9581',
+    longitude: '-118.3417',
+    city: 'Los Angeles',
+    region: 'CA',
+    country: 'United States',
+    description: 'Historic entertainment venue in Inglewood',
+    capacity: 17500,
+    image_url: 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=500&h=300&fit=crop'
+  },
+  {
+    id: '3',
+    name: 'O2 Arena',
+    latitude: '51.5033',
+    longitude: '-0.0031',
+    city: 'London',
+    region: 'England',
+    country: 'United Kingdom',
+    description: 'Premier entertainment venue in London',
+    capacity: 20000,
+    image_url: 'https://images.unsplash.com/photo-1514320291840-2e0a9bf2a9ae?w=500&h=300&fit=crop'
+  },
+  {
+    id: '4',
+    name: 'Bercy Arena',
+    latitude: '48.8398',
+    longitude: '2.3791',
+    city: 'Paris',
+    region: 'Île-de-France',
+    country: 'France',
+    description: 'Multi-purpose indoor sports arena and concert hall',
+    capacity: 20300,
+    image_url: 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=500&h=300&fit=crop'
+  },
+  {
+    id: '5',
+    name: 'Scotiabank Arena',
+    latitude: '43.6435',
+    longitude: '-79.3791',
+    city: 'Toronto',
+    region: 'ON',
+    country: 'Canada',
+    description: 'Multi-purpose arena in downtown Toronto',
+    capacity: 19800,
+    image_url: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=500&h=300&fit=crop'
   }
 ];
 
@@ -164,6 +227,11 @@ export const getArtistById = (id: string): Artist | undefined => {
   return mockArtists.find(artist => artist.id.toString() === id);
 };
 
+// Helper function to get venue by name
+export const getVenueByName = (name: string): VenueData | undefined => {
+  return mockVenues.find(venue => venue.name === name);
+};
+
 // Helper function to filter events
 export const filterEvents = (events: Event[], filters: {
   location?: string;
@@ -189,6 +257,37 @@ export const filterEvents = (events: Event[], filters: {
       if (eventDate.toDateString() !== filterDate.toDateString()) {
         return false;
       }
+    }
+    
+    return true;
+  });
+};
+
+// Helper function to filter artists
+export const filterArtists = (artists: Artist[], filters: {
+  name?: string;
+}): Artist[] => {
+  return artists.filter(artist => {
+    if (filters.name && !artist.name.toLowerCase().includes(filters.name.toLowerCase())) {
+      return false;
+    }
+    return true;
+  });
+};
+
+// Helper function to filter venues
+export const filterVenues = (venues: VenueData[], filters: {
+  name?: string;
+  location?: string;
+}): VenueData[] => {
+  return venues.filter(venue => {
+    if (filters.name && !venue.name.toLowerCase().includes(filters.name.toLowerCase())) {
+      return false;
+    }
+    
+    if (filters.location && !venue.city.toLowerCase().includes(filters.location.toLowerCase()) &&
+        !venue.country.toLowerCase().includes(filters.location.toLowerCase())) {
+      return false;
     }
     
     return true;
