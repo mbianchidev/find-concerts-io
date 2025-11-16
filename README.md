@@ -69,7 +69,43 @@ The application uses mock data based on the Bandsintown API schema defined in `b
 
 ## Deployment
 
-This application is configured for deployment on GitHub Pages with static export. The build output is optimized for static hosting.
+This application is configured for deployment on GitHub Pages with static export. 
+
+### Automated Deployment
+
+The project includes a GitHub Actions workflow that automatically deploys to GitHub Pages:
+
+- **Automatic**: Deploys on every push to the `main` branch
+- **Manual**: Can be triggered manually from the Actions tab
+- **URL**: `https://mbianchidev.github.io/find-concerts-io/`
+
+### Setup Instructions
+
+To enable GitHub Pages deployment for your fork:
+
+1. Go to your repository Settings → Pages
+2. Under "Build and deployment", select:
+   - **Source**: GitHub Actions
+3. Push to the `main` branch or manually trigger the workflow
+
+The workflow will:
+- Install dependencies
+- Build the Next.js application with the correct base path
+- Create a `.nojekyll` file to prevent Jekyll processing
+- Deploy to GitHub Pages
+
+### Local Production Build
+
+To build and test the production version locally:
+
+```bash
+# Build with GitHub Pages base path
+NEXT_PUBLIC_BASE_PATH=/find-concerts-io npm run build
+
+# The static files will be in the 'out' directory
+```
+
+For deployment to a custom domain, remove the `NEXT_PUBLIC_BASE_PATH` environment variable from the workflow.
 
 ## License
 
