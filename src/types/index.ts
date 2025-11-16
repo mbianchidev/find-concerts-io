@@ -8,6 +8,7 @@ export interface Artist {
   mbid: string;
   tracker_count: number;
   upcoming_event_count: number;
+  genre: string;
 }
 
 export interface Venue {

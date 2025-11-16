@@ -54,6 +54,9 @@ export default function ArtistCard({ artist, className = '' }: ArtistCardProps) 
             <p className="text-sm text-gray-600">
               {artist.tracker_count.toLocaleString()} followers
             </p>
+            <span className="inline-block mt-1 px-2 py-1 text-xs font-medium bg-purple-100 text-purple-800 rounded">
+              {artist.genre}
+            </span>
           </div>
         </div>
 

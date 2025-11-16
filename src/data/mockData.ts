@@ -10,7 +10,8 @@ export const mockArtists: Artist[] = [
     facebook_page_url: 'https://facebook.com/arcticmonkeys',
     mbid: 'ada7a83c-e3e1-40f2-9f9d-21f9c28e4d42',
     tracker_count: 250000,
-    upcoming_event_count: 15
+    upcoming_event_count: 15,
+    genre: 'Rock'
   },
   {
     id: 2,
@@ -21,7 +22,8 @@ export const mockArtists: Artist[] = [
     facebook_page_url: 'https://facebook.com/billieeilish',
     mbid: 'f4abc0b5-3d5a-4a4e-8a0b-3d5a4a4e8a0b',
     tracker_count: 180000,
-    upcoming_event_count: 22
+    upcoming_event_count: 22,
+    genre: 'Pop'
   },
   {
     id: 3,
@@ -32,7 +34,8 @@ export const mockArtists: Artist[] = [
     facebook_page_url: 'https://facebook.com/theweeknd',
     mbid: 'c14b4180-dc87-481e-b17a-64e4150f90f6',
     tracker_count: 320000,
-    upcoming_event_count: 18
+    upcoming_event_count: 18,
+    genre: 'R&B'
   }
 ];
 
@@ -227,6 +230,12 @@ export const getArtistById = (id: string): Artist | undefined => {
   return mockArtists.find(artist => artist.id.toString() === id);
 };
 
+// Helper function to get unique genres
+export const getUniqueGenres = (): string[] => {
+  const genres = mockArtists.map(artist => artist.genre);
+  return [...new Set(genres)].sort();
+};
+
 // Helper function to get venue by name
 export const getVenueByName = (name: string): VenueData | undefined => {
   return mockVenues.find(venue => venue.name === name);
@@ -266,9 +275,13 @@ export const filterEvents = (events: Event[], filters: {
 // Helper function to filter artists
 export const filterArtists = (artists: Artist[], filters: {
   name?: string;
+  genre?: string;
 }): Artist[] => {
   return artists.filter(artist => {
     if (filters.name && !artist.name.toLowerCase().includes(filters.name.toLowerCase())) {
+      return false;
+    }
+    if (filters.genre && filters.genre !== 'all' && artist.genre !== filters.genre) {
       return false;
     }
     return true;

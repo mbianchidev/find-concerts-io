@@ -4,12 +4,14 @@ import { useState } from 'react';
 import Header from '@/components/Header';
 import ArtistList from '@/components/ArtistList';
 import { Artist } from '@/types';
-import { mockArtists, filterArtists } from '@/data/mockData';
+import { mockArtists, filterArtists, getUniqueGenres } from '@/data/mockData';
 
 export default function ArtistsPage() {
   const [artists, setArtists] = useState<Artist[]>(mockArtists);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedGenre, setSelectedGenre] = useState('all');
+  const genres = getUniqueGenres();
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -17,7 +19,10 @@ export default function ArtistsPage() {
     
     // Simulate API call delay
     setTimeout(() => {
-      const filtered = filterArtists(mockArtists, { name: searchQuery });
+      const filtered = filterArtists(mockArtists, { 
+        name: searchQuery,
+        genre: selectedGenre 
+      });
       setArtists(filtered);
       setLoading(false);
     }, 500);
@@ -25,6 +30,7 @@ export default function ArtistsPage() {
 
   const handleClear = () => {
     setSearchQuery('');
+    setSelectedGenre('all');
     setArtists(mockArtists);
   };
 
@@ -51,7 +57,7 @@ export default function ArtistsPage() {
         {/* Search Section */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8">
           <div className="bg-white shadow-lg rounded-lg p-6 mb-8">
-            <form onSubmit={handleSearch} className="flex gap-4">
+            <form onSubmit={handleSearch} className="space-y-4 md:space-y-0 md:flex md:gap-4 md:items-end">
               <div className="flex-1">
                 <label htmlFor="artist-search" className="block text-sm font-medium text-gray-700 mb-1">
                   Search Artists
@@ -65,7 +71,25 @@ export default function ArtistsPage() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 />
               </div>
-              <div className="flex items-end gap-2">
+              <div className="flex-1">
+                <label htmlFor="genre-select" className="block text-sm font-medium text-gray-700 mb-1">
+                  Genre
+                </label>
+                <select
+                  id="genre-select"
+                  value={selectedGenre}
+                  onChange={(e) => setSelectedGenre(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                >
+                  <option value="all">All Genres</option>
+                  {genres.map((genre) => (
+                    <option key={genre} value={genre}>
+                      {genre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex gap-2">
                 <button
                   type="submit"
                   className="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-6 rounded-md transition-colors"
