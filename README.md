@@ -5,9 +5,12 @@ A modern, responsive web application for discovering music events worldwide. Bui
 ## Features
 
 - **Search & Filters**: Find events by location, artist, venue, date, and genre
+- **Artists Page**: Browse and search artists with watchlist functionality
+- **Venues Page**: Explore concert venues with location-based search and watchlist
+- **Watchlist**: Save favorite artists and venues (stored in local storage)
+- **Wishlist**: Mark events you're interested in attending (stored in local storage)
 - **Interactive Map**: View event locations on an interactive map using Leaflet and OpenStreetMap
 - **Event Details**: Detailed event pages with venue information and ticket links
-- **Favorites**: Save events to favorites (stored in local storage)
 - **Responsive Design**: Mobile-friendly interface with modern UI
 - **No Authentication Required**: Public access for all users
 

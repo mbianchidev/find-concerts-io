@@ -8,6 +8,7 @@ export interface Artist {
   mbid: string;
   tracker_count: number;
   upcoming_event_count: number;
+  genre: string;
 }
 
 export interface Venue {
@@ -42,4 +43,23 @@ export interface SearchFilters {
   artist?: string;
   date?: string;
   genre?: string;
+}
+
+export interface VenueData extends Venue {
+  id: string;
+  description?: string;
+  capacity?: number;
+  image_url?: string;
+}
+
+export interface WatchlistItem {
+  id: string;
+  type: 'artist' | 'venue';
+  addedAt: string;
+}
+
+export interface WishlistItem {
+  id: string;
+  type: 'event';
+  addedAt: string;
 }
