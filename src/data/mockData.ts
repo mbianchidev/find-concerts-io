@@ -1,4 +1,4 @@
-import { Event, Artist, VenueData } from '@/types';
+import { Event, Artist, VenueData, Tour } from '@/types';
 
 export const mockArtists: Artist[] = [
   {
@@ -301,6 +301,66 @@ export const filterVenues = (venues: VenueData[], filters: {
     if (filters.location && !venue.city.toLowerCase().includes(filters.location.toLowerCase()) &&
         !venue.country.toLowerCase().includes(filters.location.toLowerCase())) {
       return false;
+    }
+    
+    return true;
+  });
+};
+
+export const mockTours: Tour[] = [
+  {
+    id: '1',
+    name: 'World Tour 2024',
+    artist_id: '1',
+    description: 'Arctic Monkeys take their iconic sound across the globe with an unforgettable live experience.',
+    start_date: '2024-10-01T00:00:00',
+    end_date: '2024-12-20T00:00:00',
+    image_url: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=500&h=300&fit=crop',
+    event_count: 15,
+    cities: ['New York', 'Los Angeles', 'London', 'Paris', 'Berlin'],
+    url: 'http://bandsintown.com/arcticmonkeys/tour'
+  },
+  {
+    id: '2',
+    name: 'Hit Me Hard and Soft Tour',
+    artist_id: '2',
+    description: 'Billie Eilish presents her latest album with stunning visuals and intimate performances.',
+    start_date: '2024-09-15T00:00:00',
+    end_date: '2024-12-10T00:00:00',
+    image_url: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=500&h=300&fit=crop',
+    event_count: 22,
+    cities: ['Los Angeles', 'Toronto', 'Chicago', 'Miami', 'Seattle'],
+    url: 'http://bandsintown.com/billieeilish/tour'
+  },
+  {
+    id: '3',
+    name: 'After Hours til Dawn Tour',
+    artist_id: '3',
+    description: 'The Weeknd brings his electrifying stage production to arenas worldwide.',
+    start_date: '2024-08-20T00:00:00',
+    end_date: '2024-11-30T00:00:00',
+    image_url: 'https://images.unsplash.com/photo-1471478331149-c72f17e33c73?w=500&h=300&fit=crop',
+    event_count: 18,
+    cities: ['London', 'Paris', 'Amsterdam', 'Madrid', 'Rome'],
+    url: 'http://bandsintown.com/theweeknd/tour'
+  }
+];
+
+// Helper function to filter tours
+export const filterTours = (tours: Tour[], filters: {
+  name?: string;
+  artist?: string;
+}): Tour[] => {
+  return tours.filter(tour => {
+    if (filters.name && !tour.name.toLowerCase().includes(filters.name.toLowerCase())) {
+      return false;
+    }
+    
+    if (filters.artist) {
+      const artist = getArtistById(tour.artist_id);
+      if (!artist || !artist.name.toLowerCase().includes(filters.artist.toLowerCase())) {
+        return false;
+      }
     }
     
     return true;
