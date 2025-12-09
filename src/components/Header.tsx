@@ -56,6 +56,16 @@ export default function Header() {
               >
                 Venues
               </Link>
+              <Link
+                href="/tours"
+                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  isActive('/tours') 
+                    ? 'text-blue-600 bg-blue-50' 
+                    : 'text-gray-600 hover:text-blue-600'
+                }`}
+              >
+                Tours
+              </Link>
             </div>
           </nav>
 

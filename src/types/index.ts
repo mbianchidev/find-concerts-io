@@ -63,3 +63,16 @@ export interface WishlistItem {
   type: 'event';
   addedAt: string;
 }
+
+export interface Tour {
+  id: string;
+  name: string;
+  artist_id: string;
+  description?: string;
+  start_date: string;
+  end_date: string;
+  image_url?: string;
+  event_count: number;
+  cities: string[];
+  url?: string;
+}
