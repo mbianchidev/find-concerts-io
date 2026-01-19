@@ -39,24 +39,24 @@ export default function TourList({ tours, loading = false }: TourListProps) {
       <div className="text-center py-20">
         <div className="max-w-md mx-auto">
           <div className="mb-8 relative">
-            <div className="text-8xl animate-float">🎸</div>
+            <div className="text-8xl animate-precision-float">🎸</div>
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-32 h-32 rounded-full bg-neon-orange/20 blur-3xl animate-pulse-glow"></div>
+              <div className="w-32 h-32 bg-accent-orange/15 blur-3xl animate-pulse-sheen clip-hexagon"></div>
             </div>
           </div>
           
-          <h3 className="text-3xl font-display font-bold neon-text-orange mb-4">
+          <h3 className="text-3xl font-display font-black metal-text-orange mb-4">
             NO TOURS FOUND
           </h3>
           
-          <p className="text-lg text-white/60 mb-8">
+          <p className="text-lg text-white/60 mb-8 font-medium">
             Try adjusting your search filters to discover epic tours.
           </p>
           
           <div className="flex justify-center gap-4 text-2xl">
-            <span className="animate-pulse text-neon-orange">♪</span>
-            <span className="animate-pulse delay-200 text-neon-lime">♫</span>
-            <span className="animate-pulse delay-400 text-neon-cyan">♬</span>
+            <span className="animate-pulse text-accent-orange">♪</span>
+            <span className="animate-pulse delay-200 text-accent-cobalt">♫</span>
+            <span className="animate-pulse delay-400 text-metal-steel">♬</span>
           </div>
         </div>
       </div>
@@ -67,13 +67,13 @@ export default function TourList({ tours, loading = false }: TourListProps) {
     <div>
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 pb-6 border-b border-white/10">
         <h2 className="text-3xl md:text-4xl font-display font-black">
-          <span className="neon-text-orange">{tours.length}</span>
+          <span className="metal-text-orange">{tours.length}</span>
           <span className="text-white ml-3">
             {tours.length === 1 ? 'Tour' : 'Tours'}
           </span>
         </h2>
         
-        <div className="text-sm text-white/50 font-display uppercase tracking-wider mt-2 md:mt-0">
+        <div className="text-sm text-white/50 font-display uppercase tracking-wider mt-2 md:mt-0 font-bold">
           World Tours
         </div>
       </div>
