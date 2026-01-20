@@ -34,31 +34,47 @@ export default function VenuesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-void-black">
       <Header />
       
       <main>
         {/* Hero Section */}
-        <div className="bg-gradient-to-r from-indigo-600 to-blue-600 text-white">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        <div className="relative overflow-hidden">
+          {/* Metallic Background */}
+          <div className="absolute inset-0 bg-gradient-to-br from-accent-cobalt/12 via-metal-steel/10 to-metal-chrome/10 opacity-70"></div>
+          <div className="absolute inset-0 grid-pattern opacity-30"></div>
+          
+          {/* Floating Elements */}
+          <div className="absolute top-20 left-10 w-32 h-32 bg-accent-cobalt/8 blur-3xl animate-precision-float clip-hexagon"></div>
+          <div className="absolute bottom-20 right-10 w-40 h-40 bg-metal-steel/10 blur-3xl animate-precision-float-slow clip-angle-dual"></div>
+          
+          {/* Content */}
+          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-28">
             <div className="text-center">
-              <h1 className="text-4xl md:text-6xl font-bold mb-4">
-                Explore
-                <span className="block text-yellow-300">World-Class Venues</span>
+              <h1 className="font-display font-black text-5xl sm:text-6xl md:text-7xl mb-6">
+                <span className="block metal-text-cobalt animate-pulse-sheen">
+                  EXPLORE
+                </span>
+                <span className="block mt-2 text-white">
+                  EPIC <span className="metal-text-steel">VENUES</span>
+                </span>
               </h1>
-              <p className="text-xl md:text-2xl text-indigo-100 mb-8 max-w-3xl mx-auto">
-                Find and follow the best concert venues and performance spaces.
+              
+              <p className="text-xl md:text-2xl font-body font-medium text-white/80 mb-8 max-w-3xl mx-auto">
+                Find and follow the best concert venues and performance spaces
               </p>
             </div>
           </div>
+          
+          <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-void-black to-transparent"></div>
         </div>
 
         {/* Search Section */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8">
-          <div className="bg-white shadow-lg rounded-lg p-6 mb-8">
-            <form onSubmit={handleSearch} className="space-y-4 md:space-y-0 md:flex md:gap-4 md:items-end">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-16 relative z-10">
+          <div className="glass-dark p-6 md:p-8 shadow-metal-cobalt/20 shadow-2xl border border-metal-steel/20 animate-mechanical-scale clip-angle-dual">
+            <form onSubmit={handleSearch} className="space-y-6 md:space-y-0 md:flex md:gap-4 md:items-end">
               <div className="flex-1">
-                <label htmlFor="venue-name" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="venue-name" className="block text-sm font-display font-bold uppercase tracking-wider text-accent-cobalt mb-2">
                   Venue Name
                 </label>
                 <input
@@ -67,12 +83,12 @@ export default function VenuesPage() {
                   value={searchName}
                   onChange={(e) => setSearchName(e.target.value)}
                   placeholder="Search by venue name"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="input-metal w-full"
                 />
               </div>
 
               <div className="flex-1">
-                <label htmlFor="venue-location" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="venue-location" className="block text-sm font-display font-bold uppercase tracking-wider text-metal-steel mb-2">
                   Location
                 </label>
                 <input
@@ -81,21 +97,21 @@ export default function VenuesPage() {
                   value={searchLocation}
                   onChange={(e) => setSearchLocation(e.target.value)}
                   placeholder="City or Country"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="input-metal w-full"
                 />
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex gap-3">
                 <button
                   type="submit"
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-6 rounded-md transition-colors"
+                  className="btn-metal btn-metal-cobalt flex-1 md:flex-none"
                 >
                   Search
                 </button>
                 <button
                   type="button"
                   onClick={handleClear}
-                  className="bg-gray-300 hover:bg-gray-400 text-gray-700 font-medium py-2 px-4 rounded-md transition-colors"
+                  className="btn-secondary"
                 >
                   Clear
                 </button>
@@ -105,21 +121,25 @@ export default function VenuesPage() {
         </div>
 
         {/* Results Section */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
           <VenueList venues={venues} loading={loading} />
         </div>
       </main>
 
       {/* Footer */}
-      <footer className="bg-gray-800 text-white py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <footer className="relative border-t border-white/10 mt-20">
+        <div className="absolute inset-0 bg-gradient-to-t from-obsidian to-transparent opacity-70"></div>
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="text-center">
-            <h3 className="text-lg font-semibold mb-2">Find Concerts</h3>
-            <p className="text-gray-300 text-sm">
-              Discover amazing live music events worldwide
+            <h3 className="font-display font-black text-2xl mb-2">
+              <span className="metal-text-crimson">FIND</span>
+              <span className="text-metal-steel ml-2">CONCERTS</span>
+            </h3>
+            <p className="text-white/60 text-sm font-body font-medium">
+              The ultimate social network for live music
             </p>
-            <div className="mt-4 text-xs text-gray-400">
-              © 2024 Find Concerts. All rights reserved.
+            <div className="mt-4 text-xs text-white/40 font-display tracking-wider font-bold">
+              © 2024 FIND CONCERTS • ALL RIGHTS RESERVED
             </div>
           </div>
         </div>

@@ -29,10 +29,11 @@ export default function SearchBar({ onSearch }: SearchBarProps) {
   };
 
   return (
-    <div className="bg-white shadow-lg rounded-lg p-6 mb-8">
-      <form onSubmit={handleSubmit} className="space-y-4 md:space-y-0 md:flex md:gap-4 md:items-end">
+    <div className="glass-dark p-6 md:p-8 shadow-metal-steel/20 shadow-2xl border border-metal-steel/20 animate-mechanical-scale clip-angle-dual">
+      <form onSubmit={handleSubmit} className="space-y-6 md:space-y-0 md:flex md:gap-4 md:items-end">
+        {/* Location Input */}
         <div className="flex-1">
-          <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="location" className="block text-sm font-display font-bold uppercase tracking-wider text-metal-steel mb-2">
             Location
           </label>
           <input
@@ -41,12 +42,13 @@ export default function SearchBar({ onSearch }: SearchBarProps) {
             value={location}
             onChange={(e) => setLocation(e.target.value)}
             placeholder="City, Country"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="input-metal w-full"
           />
         </div>
 
+        {/* Artist Input */}
         <div className="flex-1">
-          <label htmlFor="artist" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="artist" className="block text-sm font-display font-bold uppercase tracking-wider text-accent-crimson mb-2">
             Artist
           </label>
           <input
@@ -55,12 +57,13 @@ export default function SearchBar({ onSearch }: SearchBarProps) {
             value={artist}
             onChange={(e) => setArtist(e.target.value)}
             placeholder="Artist name"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="input-metal w-full"
           />
         </div>
 
+        {/* Date Input */}
         <div className="flex-1">
-          <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="date" className="block text-sm font-display font-bold uppercase tracking-wider text-accent-cobalt mb-2">
             Date
           </label>
           <input
@@ -68,21 +71,22 @@ export default function SearchBar({ onSearch }: SearchBarProps) {
             id="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="input-metal w-full"
           />
         </div>
 
-        <div className="flex gap-2">
+        {/* Buttons */}
+        <div className="flex gap-3">
           <button
             type="submit"
-            className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-md transition-colors"
+            className="btn-metal btn-metal-crimson flex-1 md:flex-none"
           >
             Search
           </button>
           <button
             type="button"
             onClick={handleClear}
-            className="bg-gray-300 hover:bg-gray-400 text-gray-700 font-medium py-2 px-4 rounded-md transition-colors"
+            className="btn-secondary"
           >
             Clear
           </button>

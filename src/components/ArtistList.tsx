@@ -13,15 +13,17 @@ export default function ArtistList({ artists, loading = false }: ArtistListProps
     return (
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {[...Array(6)].map((_, i) => (
-          <div key={i} className="animate-pulse">
-            <div className="bg-gray-200 h-48 rounded-t-lg"></div>
-            <div className="bg-white p-4 rounded-b-lg shadow-md">
-              <div className="h-4 bg-gray-200 rounded mb-2"></div>
-              <div className="h-3 bg-gray-200 rounded mb-2 w-3/4"></div>
-              <div className="h-3 bg-gray-200 rounded mb-3 w-1/2"></div>
-              <div className="flex justify-between">
-                <div className="h-3 bg-gray-200 rounded w-1/4"></div>
-                <div className="h-8 bg-gray-200 rounded w-20"></div>
+          <div key={i} className="card-neon animate-pulse">
+            <div className="h-56 skeleton-neon"></div>
+            <div className="p-5 space-y-4">
+              <div className="space-y-2">
+                <div className="h-6 skeleton-neon rounded w-3/4"></div>
+                <div className="h-4 skeleton-neon rounded w-1/2"></div>
+              </div>
+              <div className="h-6 skeleton-neon rounded w-20"></div>
+              <div className="flex justify-between items-center pt-4">
+                <div className="h-3 skeleton-neon rounded w-24"></div>
+                <div className="h-3 skeleton-neon rounded w-16"></div>
               </div>
             </div>
           </div>
@@ -32,15 +34,28 @@ export default function ArtistList({ artists, loading = false }: ArtistListProps
 
   if (artists.length === 0) {
     return (
-      <div className="text-center py-12">
+      <div className="text-center py-20">
         <div className="max-w-md mx-auto">
-          <div className="text-6xl mb-4">🎤</div>
-          <h3 className="text-xl font-semibold text-gray-800 mb-2">
-            No artists found
+          <div className="mb-8 relative">
+            <div className="text-8xl animate-precision-float">🎤</div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="w-32 h-32 bg-accent-crimson/15 blur-3xl animate-pulse-sheen clip-hexagon"></div>
+            </div>
+          </div>
+          
+          <h3 className="text-3xl font-display font-black metal-text-crimson mb-4">
+            NO ARTISTS FOUND
           </h3>
-          <p className="text-gray-600">
-            Try adjusting your search criteria to find more artists.
+          
+          <p className="text-lg text-white/60 mb-8 font-medium">
+            Try adjusting your search filters to discover amazing artists.
           </p>
+          
+          <div className="flex justify-center gap-4 text-2xl">
+            <span className="animate-pulse text-accent-crimson">♪</span>
+            <span className="animate-pulse delay-200 text-metal-steel">♫</span>
+            <span className="animate-pulse delay-400 text-accent-cobalt">♬</span>
+          </div>
         </div>
       </div>
     );
@@ -48,19 +63,31 @@ export default function ArtistList({ artists, loading = false }: ArtistListProps
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">
-          {artists.length} {artists.length === 1 ? 'Artist' : 'Artists'} Found
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 pb-6 border-b border-white/10">
+        <h2 className="text-3xl md:text-4xl font-display font-black">
+          <span className="metal-text-crimson">{artists.length}</span>
+          <span className="text-white ml-3">
+            {artists.length === 1 ? 'Artist' : 'Artists'}
+          </span>
         </h2>
-        <div className="text-sm text-gray-500">
-          Showing results for your search
+        
+        <div className="text-sm text-white/50 font-display uppercase tracking-wider mt-2 md:mt-0 font-bold">
+          Global Talent
         </div>
       </div>
       
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {artists.map((artist) => (
-          <ArtistCard key={artist.id} artist={artist} />
-        ))}
+        {artists.map((artist, index) => {
+          const delayClass = ['', 'delay-100', 'delay-200', 'delay-300', 'delay-400', 'delay-500'][index % 6];
+          return (
+            <div 
+              key={artist.id} 
+              className={`animate-slide-in ${delayClass}`}
+            >
+              <ArtistCard artist={artist} />
+            </div>
+          );
+        })}
       </div>
     </div>
   );

@@ -1,23 +1,551 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* DJENT / PROGRESSIVE METAL COLOR PALETTE */
+  /* Primary - Steel & Gunmetal */
+  --metal-steel: #71797E;
+  --metal-gunmetal: #2C3539;
+  --metal-charcoal: #36454F;
+  
+  /* Secondary - Titanium & Chrome */
+  --metal-titanium: #878681;
+  --metal-silver: #B0B0B0;
+  --metal-chrome: #3D3D3D;
+  
+  /* Accents - Deep Crimson, Electric Cobalt, Burnt Orange */
+  --accent-crimson: #8B0000;
+  --accent-cobalt: #0047AB;
+  --accent-orange: #CC5500;
+  
+  /* Base - Deep Blacks */
+  --void-black: #0D0D0D;
+  --obsidian: #0B1215;
+  --matte-black: #1A1A1A;
+  
+  /* Metallic Sheen Effects (subtle highlights) */
+  --sheen-steel: 0 2px 12px rgba(113, 121, 126, 0.3), 0 0 4px rgba(176, 176, 176, 0.2);
+  --sheen-crimson: 0 2px 10px rgba(139, 0, 0, 0.4), 0 0 4px rgba(139, 0, 0, 0.2);
+  --sheen-cobalt: 0 2px 10px rgba(0, 71, 171, 0.4), 0 0 4px rgba(0, 71, 171, 0.2);
+  --sheen-orange: 0 2px 10px rgba(204, 85, 0, 0.4), 0 0 4px rgba(204, 85, 0, 0.2);
+  
+  /* Subtle Metallic Text Highlights */
+  --text-sheen-steel: 0 1px 4px rgba(176, 176, 176, 0.3), 0 0 2px rgba(113, 121, 126, 0.2);
+  --text-sheen-crimson: 0 1px 4px rgba(139, 0, 0, 0.4), 0 0 2px rgba(139, 0, 0, 0.3);
+  --text-sheen-cobalt: 0 1px 4px rgba(0, 71, 171, 0.4), 0 0 2px rgba(0, 71, 171, 0.3);
+  --text-sheen-orange: 0 1px 4px rgba(204, 85, 0, 0.4), 0 0 2px rgba(204, 85, 0, 0.3);
+  
+  /* FONTS */
+  --font-display: 'Orbitron', sans-serif;
+  --font-body: 'Rajdhani', sans-serif;
+  
+  /* Precision Timing (djent polyrhythms) */
+  --timing-precise: cubic-bezier(0.4, 0.0, 0.2, 1);
+  --timing-mechanical: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --timing-snap: cubic-bezier(0.8, 0.0, 0.2, 1);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* GLOBAL STYLES */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
 body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-body);
+  background: var(--void-black);
+  color: #FFFFFF;
+  overflow-x: hidden;
+  position: relative;
+  font-weight: 500;
+}
+
+/* METALLIC GRADIENT BACKGROUND */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  background: 
+    radial-gradient(ellipse at 15% 25%, rgba(113, 121, 126, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 85% 75%, rgba(54, 68, 79, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 50%, rgba(61, 61, 61, 0.06) 0%, transparent 50%);
+  animation: pulse-metal 6s ease-in-out infinite;
+}
+
+/* FINE GRAIN TEXTURE OVERLAY */
+body::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='3.2' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.02'/%3E%3C/svg%3E");
+  pointer-events: none;
+}
+
+/* ANGULAR GEOMETRIC GRID PATTERN */
+.grid-pattern {
+  background-image: 
+    linear-gradient(rgba(113, 121, 126, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(113, 121, 126, 0.08) 1px, transparent 1px),
+    linear-gradient(45deg, transparent 48%, rgba(113, 121, 126, 0.03) 49%, rgba(113, 121, 126, 0.03) 51%, transparent 52%);
+  background-size: 60px 60px, 60px 60px, 120px 120px;
+  animation: grid-shift 30s linear infinite;
+}
+
+/* HEXAGONAL PATTERN */
+.hex-pattern {
+  background-image: 
+    radial-gradient(circle at 50% 50%, transparent 40%, rgba(113, 121, 126, 0.05) 41%, rgba(113, 121, 126, 0.05) 42%, transparent 43%);
+  background-size: 50px 50px;
+  background-position: 0 0, 25px 43px;
+}
+
+/* SCANLINES EFFECT (more subtle, mechanical) */
+.scanlines {
+  position: relative;
+  overflow: hidden;
+}
+
+.scanlines::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    transparent 50%,
+    rgba(113, 121, 126, 0.02) 50%
+  );
+  background-size: 100% 3px;
+  pointer-events: none;
+}
+
+/* FROSTED GLASS MORPHISM (Heavy Backdrop Blur) */
+.glass {
+  background: rgba(26, 26, 26, 0.4);
+  backdrop-filter: blur(30px) saturate(150%);
+  -webkit-backdrop-filter: blur(30px) saturate(150%);
+  border: 1px solid rgba(176, 176, 176, 0.15);
+}
+
+.glass-dark {
+  background: rgba(13, 13, 13, 0.85);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  border: 1px solid rgba(113, 121, 126, 0.2);
+}
+
+/* ANGULAR CLIP-PATH UTILITIES */
+.clip-angle-tl {
+  clip-path: polygon(12px 0, 100% 0, 100% 100%, 0 100%, 0 12px);
+}
+
+.clip-angle-tr {
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
+}
+
+.clip-angle-br {
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%);
+}
+
+.clip-angle-bl {
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+}
+
+.clip-angle-dual {
+  clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+}
+
+.clip-hexagon {
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+}
+
+/* METALLIC BORDERS */
+.metal-border-steel {
+  border: 2px solid var(--metal-steel);
+  box-shadow: 
+    inset 0 0 8px rgba(176, 176, 176, 0.1),
+    0 0 8px rgba(113, 121, 126, 0.2);
+}
+
+.metal-border-crimson {
+  border: 2px solid var(--accent-crimson);
+  box-shadow: 
+    inset 0 0 8px rgba(139, 0, 0, 0.2),
+    0 0 8px rgba(139, 0, 0, 0.3);
+}
+
+.metal-border-cobalt {
+  border: 2px solid var(--accent-cobalt);
+  box-shadow: 
+    inset 0 0 8px rgba(0, 71, 171, 0.2),
+    0 0 8px rgba(0, 71, 171, 0.3);
+}
+
+.metal-border-orange {
+  border: 2px solid var(--accent-orange);
+  box-shadow: 
+    inset 0 0 8px rgba(204, 85, 0, 0.2),
+    0 0 8px rgba(204, 85, 0, 0.3);
+}
+
+/* METALLIC TEXT WITH SUBTLE SHEEN */
+.metal-text-steel {
+  color: var(--metal-silver);
+  text-shadow: var(--text-sheen-steel);
+}
+
+.metal-text-crimson {
+  color: var(--accent-crimson);
+  text-shadow: var(--text-sheen-crimson);
+  font-weight: 700;
+}
+
+.metal-text-cobalt {
+  color: var(--accent-cobalt);
+  text-shadow: var(--text-sheen-cobalt);
+  font-weight: 700;
+}
+
+.metal-text-orange {
+  color: var(--accent-orange);
+  text-shadow: var(--text-sheen-orange);
+  font-weight: 700;
+}
+
+/* ANIMATIONS - PRECISE & MECHANICAL */
+@keyframes pulse-metal {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.92; transform: scale(1.02); }
+}
+
+@keyframes grid-shift {
+  0% { background-position: 0 0, 0 0, 0 0; }
+  100% { background-position: 60px 60px, 60px 60px, 120px 120px; }
+}
+
+@keyframes metallic-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes precision-float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-12px); }
+}
+
+@keyframes precision-float-slow {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-16px) rotate(2deg); }
+}
+
+@keyframes mechanical-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes mechanical-scale {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes shimmer-metal {
+  0% { background-position: -1000px 0; }
+  100% { background-position: 1000px 0; }
+}
+
+@keyframes pulse-sheen {
+  0%, 100% { 
+    opacity: 1;
+    filter: brightness(1);
+  }
+  50% { 
+    opacity: 0.9;
+    filter: brightness(1.15);
+  }
+}
+
+@keyframes rotate-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* BUTTON STYLES - PRECISION MACHINED METAL */
+.btn-metal {
+  position: relative;
+  padding: 12px 32px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  border: none;
+  cursor: pointer;
+  overflow: hidden;
+  transition: all 0.25s var(--timing-precise);
+  clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+}
+
+.btn-metal::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(176, 176, 176, 0.2), transparent);
+  transition: left 0.4s var(--timing-mechanical);
+}
+
+.btn-metal:hover::before {
+  left: 100%;
+}
+
+.btn-metal-steel {
+  background: linear-gradient(135deg, var(--metal-charcoal), var(--metal-gunmetal));
+  color: var(--metal-silver);
+  box-shadow: var(--sheen-steel);
+  border: 1px solid rgba(113, 121, 126, 0.4);
+}
+
+.btn-metal-steel:hover {
+  transform: translateY(-1px);
+  box-shadow: 
+    var(--sheen-steel),
+    0 6px 16px rgba(113, 121, 126, 0.2);
+}
+
+.btn-metal-steel:active {
+  transform: translateY(0);
+}
+
+.btn-metal-crimson {
+  background: linear-gradient(135deg, var(--accent-crimson), #6B0000);
+  color: white;
+  box-shadow: var(--sheen-crimson);
+  border: 1px solid rgba(139, 0, 0, 0.6);
+}
+
+.btn-metal-crimson:hover {
+  transform: translateY(-1px);
+  box-shadow: 
+    var(--sheen-crimson),
+    0 6px 16px rgba(139, 0, 0, 0.3);
+}
+
+.btn-metal-crimson:active {
+  transform: translateY(0);
+}
+
+.btn-metal-cobalt {
+  background: linear-gradient(135deg, var(--accent-cobalt), #003785);
+  color: white;
+  box-shadow: var(--sheen-cobalt);
+  border: 1px solid rgba(0, 71, 171, 0.6);
+}
+
+.btn-metal-cobalt:hover {
+  transform: translateY(-1px);
+  box-shadow: 
+    var(--sheen-cobalt),
+    0 6px 16px rgba(0, 71, 171, 0.3);
+}
+
+.btn-metal-cobalt:active {
+  transform: translateY(0);
+}
+
+.btn-metal-orange {
+  background: linear-gradient(135deg, var(--accent-orange), #A34400);
+  color: white;
+  box-shadow: var(--sheen-orange);
+  border: 1px solid rgba(204, 85, 0, 0.6);
+}
+
+.btn-metal-orange:hover {
+  transform: translateY(-1px);
+  box-shadow: 
+    var(--sheen-orange),
+    0 6px 16px rgba(204, 85, 0, 0.3);
+}
+
+.btn-metal-orange:active {
+  transform: translateY(0);
+}
+
+/* INPUT STYLES - ANGULAR GLASS */
+.input-metal {
+  background: rgba(26, 26, 26, 0.6);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(113, 121, 126, 0.3);
+  color: white;
+  padding: 12px 16px;
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  font-weight: 500;
+  transition: all 0.25s var(--timing-precise);
+  clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+}
+
+.input-metal::placeholder {
+  color: rgba(176, 176, 176, 0.4);
+}
+
+.input-metal:focus {
+  outline: none;
+  border-color: var(--metal-steel);
+  background: rgba(26, 26, 26, 0.8);
+  box-shadow: 
+    0 0 12px rgba(113, 121, 126, 0.2),
+    inset 0 0 8px rgba(113, 121, 126, 0.05);
+}
+
+/* CARD STYLES - DARK GLASS WITH ANGULAR CUTS */
+.card-metal {
+  background: rgba(26, 26, 26, 0.7);
+  backdrop-filter: blur(30px) saturate(150%);
+  border: 1px solid rgba(113, 121, 126, 0.2);
+  overflow: hidden;
+  transition: all 0.3s var(--timing-precise);
+  clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+}
+
+.card-metal:hover {
+  transform: translateY(-4px);
+  border-color: var(--metal-steel);
+  box-shadow: 
+    0 0 20px rgba(113, 121, 126, 0.2),
+    0 12px 32px rgba(0, 0, 0, 0.6);
+}
+
+/* BADGE STYLES - METALLIC */
+.badge-metal {
+  padding: 4px 12px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  font-family: var(--font-display);
+  clip-path: polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px);
+}
+
+.badge-steel {
+  background: linear-gradient(135deg, rgba(113, 121, 126, 0.2), rgba(176, 176, 176, 0.15));
+  color: var(--metal-silver);
+  border: 1px solid var(--metal-steel);
+}
+
+.badge-crimson {
+  background: linear-gradient(135deg, rgba(139, 0, 0, 0.3), rgba(139, 0, 0, 0.2));
+  color: var(--accent-crimson);
+  border: 1px solid var(--accent-crimson);
+}
+
+.badge-cobalt {
+  background: linear-gradient(135deg, rgba(0, 71, 171, 0.3), rgba(0, 71, 171, 0.2));
+  color: var(--accent-cobalt);
+  border: 1px solid var(--accent-cobalt);
+}
+
+.badge-orange {
+  background: linear-gradient(135deg, rgba(204, 85, 0, 0.3), rgba(204, 85, 0, 0.2));
+  color: var(--accent-orange);
+  border: 1px solid var(--accent-orange);
+}
+
+/* UTILITY CLASSES */
+.animate-pulse-sheen {
+  animation: pulse-sheen 3s ease-in-out infinite;
+}
+
+.animate-precision-float {
+  animation: precision-float 5s ease-in-out infinite;
+}
+
+.animate-precision-float-slow {
+  animation: precision-float-slow 7s ease-in-out infinite;
+}
+
+.animate-mechanical-slide {
+  animation: mechanical-slide-in 0.5s var(--timing-mechanical) forwards;
+}
+
+.animate-mechanical-scale {
+  animation: mechanical-scale 0.4s var(--timing-snap) forwards;
+}
+
+.animate-shimmer-metal {
+  animation: shimmer-metal 2s infinite;
+}
+
+.animate-rotate-slow {
+  animation: rotate-slow 20s linear infinite;
+}
+
+/* SECONDARY BUTTON UTILITY */
+.btn-secondary {
+  padding: 12px 24px;
+  background: transparent;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(113, 121, 126, 0.3);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  transition: all 0.25s var(--timing-precise);
+  clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+}
+
+.btn-secondary:hover {
+  color: white;
+  border-color: rgba(113, 121, 126, 0.5);
+}
+
+/* STAGGER DELAYS */
+.delay-100 { animation-delay: 0.1s; }
+.delay-200 { animation-delay: 0.2s; }
+.delay-300 { animation-delay: 0.3s; }
+.delay-400 { animation-delay: 0.4s; }
+.delay-500 { animation-delay: 0.5s; }
+.delay-600 { animation-delay: 0.6s; }
+
+/* SKELETON LOADER - METALLIC SHIMMER */
+.skeleton-metal {
+  background: linear-gradient(
+    90deg,
+    rgba(113, 121, 126, 0.08) 25%,
+    rgba(176, 176, 176, 0.12) 50%,
+    rgba(113, 121, 126, 0.08) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer-metal 2s infinite;
 }
 
 @layer utilities {
