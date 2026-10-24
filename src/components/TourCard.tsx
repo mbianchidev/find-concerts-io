@@ -31,7 +31,7 @@ export default function TourCard({ tour, className = '' }: TourCardProps) {
         />
         
         {/* Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-void-black via-void-black/60 to-transparent"></div>
+        <div className="absolute inset-0 bg-linear-to-t from-void-black via-void-black/60 to-transparent"></div>
         
         {/* Shows Count Badge */}
         <div className="absolute top-3 left-3 badge-metal badge-orange backdrop-blur-md animate-pulse-sheen">

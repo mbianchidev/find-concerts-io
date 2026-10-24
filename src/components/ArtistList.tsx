@@ -17,13 +17,13 @@ export default function ArtistList({ artists, loading = false }: ArtistListProps
             <div className="h-56 skeleton-neon"></div>
             <div className="p-5 space-y-4">
               <div className="space-y-2">
-                <div className="h-6 skeleton-neon rounded w-3/4"></div>
-                <div className="h-4 skeleton-neon rounded w-1/2"></div>
+                <div className="h-6 skeleton-neon rounded-sm w-3/4"></div>
+                <div className="h-4 skeleton-neon rounded-sm w-1/2"></div>
               </div>
-              <div className="h-6 skeleton-neon rounded w-20"></div>
+              <div className="h-6 skeleton-neon rounded-sm w-20"></div>
               <div className="flex justify-between items-center pt-4">
-                <div className="h-3 skeleton-neon rounded w-24"></div>
-                <div className="h-3 skeleton-neon rounded w-16"></div>
+                <div className="h-3 skeleton-neon rounded-sm w-24"></div>
+                <div className="h-3 skeleton-neon rounded-sm w-16"></div>
               </div>
             </div>
           </div>

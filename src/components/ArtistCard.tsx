@@ -31,7 +31,7 @@ export default function ArtistCard({ artist, className = '' }: ArtistCardProps) 
         />
         
         {/* Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-void-black via-void-black/60 to-transparent"></div>
+        <div className="absolute inset-0 bg-linear-to-t from-void-black via-void-black/60 to-transparent"></div>
         
         {/* Follow Button - Overlaid on Image */}
         <button

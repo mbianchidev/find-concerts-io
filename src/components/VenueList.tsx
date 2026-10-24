@@ -17,11 +17,11 @@ export default function VenueList({ venues, loading = false }: VenueListProps) {
             <div className="h-56 skeleton-neon"></div>
             <div className="p-5 space-y-4">
               <div className="space-y-2">
-                <div className="h-6 skeleton-neon rounded w-3/4"></div>
-                <div className="h-4 skeleton-neon rounded w-1/2"></div>
+                <div className="h-6 skeleton-neon rounded-sm w-3/4"></div>
+                <div className="h-4 skeleton-neon rounded-sm w-1/2"></div>
               </div>
-              <div className="h-4 skeleton-neon rounded w-full"></div>
-              <div className="h-8 skeleton-neon rounded w-32"></div>
+              <div className="h-4 skeleton-neon rounded-sm w-full"></div>
+              <div className="h-8 skeleton-neon rounded-sm w-32"></div>
             </div>
           </div>
         ))}

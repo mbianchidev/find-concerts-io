@@ -31,7 +31,7 @@ export default function VenueCard({ venue, className = '' }: VenueCardProps) {
         />
         
         {/* Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-void-black via-void-black/60 to-transparent"></div>
+        <div className="absolute inset-0 bg-linear-to-t from-void-black via-void-black/60 to-transparent"></div>
         
         {/* Animated Location Pin */}
         <div className="absolute top-3 left-3 flex items-center gap-2 glass-dark px-3 py-2 animate-precision-float clip-angle-tl">
@@ -70,7 +70,7 @@ export default function VenueCard({ venue, className = '' }: VenueCardProps) {
           </h3>
           
           <div className="flex items-start gap-2 text-sm text-white/70 mb-1">
-            <svg className="w-4 h-4 text-accent-cobalt mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+            <svg className="w-4 h-4 text-accent-cobalt mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
             </svg>
             <div>

@@ -41,7 +41,7 @@ export default function ToursPage() {
         {/* Hero Section */}
         <div className="relative overflow-hidden">
           {/* Metallic Background */}
-          <div className="absolute inset-0 bg-gradient-to-br from-accent-orange/12 via-accent-cobalt/10 to-metal-steel/10 opacity-70"></div>
+          <div className="absolute inset-0 bg-linear-to-br from-accent-orange/12 via-accent-cobalt/10 to-metal-steel/10 opacity-70"></div>
           <div className="absolute inset-0 grid-pattern opacity-30"></div>
           
           {/* Floating Elements */}
@@ -66,7 +66,7 @@ export default function ToursPage() {
             </div>
           </div>
           
-          <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-void-black to-transparent"></div>
+          <div className="absolute bottom-0 left-0 right-0 h-32 bg-linear-to-t from-void-black to-transparent"></div>
         </div>
 
         {/* Search Section */}
@@ -128,7 +128,7 @@ export default function ToursPage() {
 
       {/* Footer */}
       <footer className="relative border-t border-white/10 mt-20">
-        <div className="absolute inset-0 bg-gradient-to-t from-obsidian to-transparent opacity-70"></div>
+        <div className="absolute inset-0 bg-linear-to-t from-obsidian to-transparent opacity-70"></div>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="text-center">
             <h3 className="font-display font-black text-2xl mb-2">
