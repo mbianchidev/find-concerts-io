@@ -18,7 +18,9 @@ A modern, responsive web application for discovering music events worldwide. Bui
 
 ### Prerequisites
 
-- Node.js 20.9+ and npm
+- Node.js 26.12.1 and npm for development and builds, pinned in `.nvmrc` and used by CI
+
+Compatible older releases remain supported: Node.js 20.19+, 22.13+, and 24+ (see `engines.node` in `package.json`). The lint tooling determines these minimums. With nvm, run `nvm install` and `nvm use` before installing dependencies.
 
 ### Installation
 
@@ -50,7 +52,7 @@ The application is configured for static export and can be deployed to GitHub Pa
 
 ## Technology Stack
 
-- **Frontend**: Next.js 16, React 19, TypeScript
+- **Frontend**: Next.js 16.4.3, React 19.3.1, TypeScript
 - **Styling**: Tailwind CSS 4 with the CSS-first theme in `src/app/globals.css`, class detection scoped to `src/`, and `@tailwindcss/postcss`
 - **Maps**: Leaflet with OpenStreetMap
 - **Data**: Mock data based on Bandsintown API schema
