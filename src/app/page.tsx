@@ -32,7 +32,7 @@ export default function HomePage() {
         {/* Epic Hero Section */}
         <div className="relative overflow-hidden">
           {/* Metallic Gradient Background */}
-          <div className="absolute inset-0 bg-gradient-to-br from-metal-gunmetal/15 via-metal-charcoal/12 to-metal-chrome/10 opacity-70"></div>
+          <div className="absolute inset-0 bg-linear-to-br from-metal-gunmetal/15 via-metal-charcoal/12 to-metal-chrome/10 opacity-70"></div>
           
           {/* Geometric Grid Pattern */}
           <div className="absolute inset-0 grid-pattern opacity-30"></div>
@@ -82,7 +82,7 @@ export default function HomePage() {
           </div>
           
           {/* Bottom gradient fade */}
-          <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-void-black to-transparent"></div>
+          <div className="absolute bottom-0 left-0 right-0 h-32 bg-linear-to-t from-void-black to-transparent"></div>
         </div>
 
         {/* Search Section */}
@@ -99,7 +99,7 @@ export default function HomePage() {
       {/* Footer */}
       <footer className="relative border-t border-white/10 mt-20">
         {/* Background decoration */}
-        <div className="absolute inset-0 bg-gradient-to-t from-obsidian to-transparent opacity-70"></div>
+        <div className="absolute inset-0 bg-linear-to-t from-obsidian to-transparent opacity-70"></div>
         
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
           <div className="text-center">

@@ -18,7 +18,7 @@ A modern, responsive web application for discovering music events worldwide. Bui
 
 ### Prerequisites
 
-- Node.js 18+ and npm
+- Node.js 20.9+ and npm
 
 ### Installation
 
@@ -30,7 +30,7 @@ cd find-concerts-io
 
 2. Install dependencies:
 ```bash
-npm install
+npm ci
 ```
 
 3. Run the development server:
@@ -50,8 +50,8 @@ The application is configured for static export and can be deployed to GitHub Pa
 
 ## Technology Stack
 
-- **Frontend**: Next.js 15, React 19, TypeScript
-- **Styling**: Tailwind CSS
+- **Frontend**: Next.js 16, React 19, TypeScript
+- **Styling**: Tailwind CSS 4 with the CSS-first theme in `src/app/globals.css`, class detection scoped to `src/`, and `@tailwindcss/postcss`
 - **Maps**: Leaflet with OpenStreetMap
 - **Data**: Mock data based on Bandsintown API schema
 
@@ -78,9 +78,11 @@ This application is configured for deployment on GitHub Pages with static export
 
 The project includes a GitHub Actions workflow that automatically deploys to GitHub Pages:
 
-- **Automatic**: Deploys on every push to the `main` branch
-- **Manual**: Can be triggered manually from the Actions tab
+- **Automatic**: Deploys on pushes to `main`, except changes limited to `README.md`, `LICENSE`, and `.github/copilot-instructions.md`
+- **Manual**: Select `main` in the Actions tab to deploy, or another branch to validate the build without deploying
 - **URL**: `https://mbianchidev.github.io/find-concerts-io/`
+
+The exclusions are exact paths, not all Markdown files. Source, dependency, configuration, workflow, and mixed documentation/code changes still deploy. Production deployments remain serialized and are never canceled by newer runs.
 
 ### Setup Instructions
 
