@@ -26,15 +26,27 @@ export default function VenueCard({ venue }: { venue: VenueData }) {
         </p>
         <h2>{venue.name}</h2>
         <p>
-          {venue.event_count} upcoming{' '}
-          {venue.event_count === 1 ? 'show' : 'shows'}
+          {venue.event_count
+            ? `${venue.event_count} upcoming ${venue.event_count === 1 ? 'show' : 'shows'} collected`
+            : 'No upcoming gigs collected yet.'}
         </p>
         <Link
-          href={`/?location=${encodeURIComponent(venue.name)}#shows`}
+          href={`/?city=${encodeURIComponent(venue.city)}&location=${encodeURIComponent(venue.name)}#shows`}
           className="show-link"
         >
           See the lineup <Icon name="arrow" />
         </Link>
+        {(venue.url || venue.source_url) && (
+          <a
+            className="show-link"
+            href={venue.url || venue.source_url}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {venue.url ? 'Venue website' : 'Source calendar'}{' '}
+            <Icon name="external" />
+          </a>
+        )}
       </div>
       <button
         className={`button ${followed ? 'button-soft' : 'button-outline'}`}

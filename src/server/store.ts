@@ -8,11 +8,12 @@ import type {
   Notification,
   SavedItem,
   User,
+  VenueData,
 } from '@/types';
-import { artistKey, isUpcoming, venueKey } from '@/lib/concerts';
+import { artistKey, collectVenues, isUpcoming, venueKey } from '@/lib/concerts';
 import type { ParsedImport } from './imports';
 import { AppError } from './errors';
-import { eventSchema } from '@/lib/schema';
+import { eventSchema, venueSchema } from '@/lib/schema';
 
 function comparable(event: Event): string {
   const { id: _id, popularity: _popularity, source, ...rest } = event;
@@ -29,7 +30,7 @@ export class ConcertStore {
     this.db = new DatabaseSync(path);
     if (path !== ':memory:') chmodSync(path, 0o600);
     const version = this.db.prepare('PRAGMA user_version').get();
-    if (!version || Number(version.user_version) > 2) {
+    if (!version || Number(version.user_version) > 3) {
       this.db.close();
       throw new Error(
         'The database schema is newer than this app. Use a matching app version; do not reset the database.'
@@ -120,7 +121,19 @@ export class ConcertStore {
             `ALTER TABLE users ADD COLUMN ${column} TEXT NOT NULL DEFAULT ''`
           );
       }
-      this.db.exec('PRAGMA user_version = 2');
+      this.db.exec(`
+        CREATE TABLE IF NOT EXISTS venues (
+          id TEXT PRIMARY KEY, payload TEXT NOT NULL, updated_at TEXT NOT NULL
+        );
+      `);
+      if (Number(version.user_version) < 3) {
+        const events = this.db
+          .prepare('SELECT payload FROM events WHERE owner_id IS NULL')
+          .all()
+          .map((row) => eventSchema.parse(JSON.parse(String(row.payload))));
+        for (const venue of collectVenues(events)) this.persistVenue(venue);
+      }
+      this.db.exec('PRAGMA user_version = 3');
     });
   }
 
@@ -250,6 +263,51 @@ export class ConcertStore {
     return row ? eventSchema.parse(JSON.parse(String(row.payload))) : undefined;
   }
 
+  venues(events = this.events(null)): VenueData[] {
+    const catalogue = this.db
+      .prepare('SELECT payload FROM venues ORDER BY id')
+      .all()
+      .map((row) => venueSchema.parse(JSON.parse(String(row.payload))));
+    return collectVenues(events, catalogue);
+  }
+
+  private persistVenue(input: VenueData): void {
+    const next = venueSchema.parse(input);
+    if (next.id !== venueKey(next))
+      throw new AppError(
+        422,
+        'VENUE_ID_MISMATCH',
+        'The venue identity does not match its name, city, and country.'
+      );
+    const row = this.db
+      .prepare('SELECT payload FROM venues WHERE id = ?')
+      .get(next.id);
+    const previous = row
+      ? venueSchema.parse(JSON.parse(String(row.payload)))
+      : undefined;
+    const merged = venueSchema.parse({
+      ...previous,
+      ...Object.fromEntries(
+        Object.entries(next).filter(([, value]) => value !== undefined)
+      ),
+      event_count: 0,
+      genres: [
+        ...new Set([...(previous?.genres || []), ...(next.genres || [])]),
+      ],
+    });
+    this.db
+      .prepare(
+        'INSERT INTO venues (id, payload, updated_at) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET payload = excluded.payload, updated_at = excluded.updated_at'
+      )
+      .run(merged.id, JSON.stringify(merged), new Date().toISOString());
+  }
+
+  upsertVenues(venues: VenueData[]): void {
+    this.transaction(() => {
+      for (const venue of venues) this.persistVenue(venue);
+    });
+  }
+
   upsertPublic(events: Event[]): number {
     return this.transaction(() => {
       let added = 0;
@@ -287,6 +345,7 @@ export class ConcertStore {
             new Date().toISOString()
           );
         if (!existing) added++;
+        this.persistVenue(collectVenues([event])[0]);
         if (isUpcoming(event)) this.notifyFollowers(event);
       }
       this.db.prepare("DELETE FROM cache WHERE key = 'public-catalogue'").run();

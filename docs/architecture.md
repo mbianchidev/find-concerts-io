@@ -30,6 +30,13 @@ Private profile fields and password changes live under account settings.
 The profile migration adds columns transactionally without resetting accounts,
 credentials, sessions, or concert data.
 
+The public venue table is independent of upcoming event availability. Schema v3
+backfills public venue identities without reading private imports into this table.
+Directories merge persistent venue metadata with filtered upcoming counts, so an
+empty room can still be followed and receive notifications when a new gig arrives.
+Verified publisher aliases share one identity; arbitrary similar names are not
+automatically merged.
+
 Public concert rows have no owner. Imported rows have an account owner and a
 separate ID namespace. Public listings, public artist/venue directories,
 trending, sitemaps, and structured data never include imports. Every private
@@ -43,6 +50,10 @@ imports, and notifications. The app does not encrypt the database at rest.
 Filtering searches concert titles, support acts, venues, cities, countries,
 local calendar dates, and genres. Upcoming-day comparisons normalize explicit
 timestamp offsets to UTC, while date filters retain the venue-local calendar date.
+The dedicated `city` facet is a complete, case-insensitive, NFKC-normalized match,
+not a venue-name substring or a surrounding-area search. Discovery and directory
+URLs preserve it across reloads, pagination resets on filter changes, and Clear
+removes it. Private city options are available only to the signed-in owner.
 Recommendations use actual saved genres, followed artists, and followed venues,
 and exclude saved, canceled, postponed,
 or past events. Similar shows use the selected concert as their seed.
@@ -62,11 +73,28 @@ layout changes are surfaced. Public metadata links back to the original page;
 the app does not republish long artist biographies. Private data is never
 sent to sources or used as a hidden provider search.
 
+Specialist calendar adapters scope Berlin, Amsterdam, Haarlem, and Utrecht
+explicitly. Berlin queries the same public search endpoint as metal.de's form,
+using verified current genre IDs and a one-year date range. Metal Agenda supplies
+dated listings and venue profiles; nearby towns are not imported as the target city.
+Calendar-derived category labels are marked separately from description-derived
+genres. Missing times stay all-day, not guessed evening timestamps. A tour URL,
+date, and venue determine event identity, preserving separate dates for one tour.
+Unknown coordinates, reversible publisher encoding errors, and verified venue-link
+aliases do not discard otherwise valid concert records.
+
+Robots policies, delays, and access-limit state are shared per origin for the
+entire run. Redirect destinations are checked before requesting them. Blocked
+origins and failed robots checks are not retried through another city source.
+
 CLI and scheduled collection use the same persistent queue. Jobs have exclusive,
 renewable ten-minute leases, bounded attempts, and completion ownership checks.
 Only one scrape job can be pending/running at a time. Notifications are unique
 per account and event. Failed notification delivery retries with backoff up to
 five attempts; source failures remain explicit until a later collection.
+City-scoped CLI jobs retain their requested scope; incompatible already-queued
+options produce an explicit conflict. Scheduling checks every configured source,
+so a recent manual city refresh cannot starve the rest.
 In-app notifications work without external services. SMTP requires confirmed
 ownership, push requires permission and a supported endpoint, and push delivery
 is tied to the signed-in session. External delivery is at-least-once on failure;

@@ -169,9 +169,11 @@ export default async function EventPage({
           </a>
           {!event.is_private && (
             <p className="muted-note">
-              Genres are matched from the venue event description. Last
-              collected {formatDate(event.source.fetched_at)}. Confirm dates,
-              accessibility, and availability with the venue.
+              {event.source.genre_basis === 'calendar'
+                ? 'Genres follow specialist calendar categories, not verified artist subgenres. '
+                : 'Genres are matched from the venue event description. '}
+              Last collected {formatDate(event.source.fetched_at)}. Confirm
+              dates, accessibility, and availability with the venue.
             </p>
           )}
         </div>

@@ -460,7 +460,7 @@ label {
 }
 .search-bar {
   display: grid;
-  grid-template-columns: 1.2fr 1.3fr 1fr auto auto;
+  grid-template-columns: 1fr 1.2fr 1.3fr 1fr auto auto;
   align-items: center;
   padding: 19px 22px;
   border: 1px solid var(--line);
@@ -488,14 +488,16 @@ label {
   width: 14px;
   color: var(--blue);
 }
-.search-field input {
+.search-field input,
+.search-field select {
   border: 0;
   padding: 7px 0 0;
   font-size: 12px;
   min-height: 32px;
   border-radius: 0;
 }
-.search-field input:focus-visible {
+.search-field input:focus-visible,
+.search-field select:focus-visible {
   outline-offset: 2px;
 }
 .button {
@@ -1417,6 +1419,7 @@ th {
     font-size: 82px;
   }
   .search-bar {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 12px;
     padding: 17px;
   }
@@ -1523,7 +1526,8 @@ th {
     border: 0;
     padding-right: 0;
   }
-  .search-field input {
+  .search-field input,
+  .search-field select {
     border-bottom: 1px solid var(--line);
     padding-bottom: 8px;
   }
@@ -1666,7 +1670,8 @@ th {
   .search-field label {
     font-size: 9px;
   }
-  .search-field input {
+  .search-field input,
+  .search-field select {
     font-size: 16px;
     padding-top: 8px;
   }

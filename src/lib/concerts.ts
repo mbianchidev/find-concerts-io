@@ -33,7 +33,10 @@ export function isUpcoming(
 
 export function filterEvents(
   events: Event[],
-  filters: Pick<SearchFilters, 'artist' | 'location' | 'date' | 'genre'>
+  filters: Pick<
+    SearchFilters,
+    'artist' | 'city' | 'location' | 'date' | 'genre'
+  >
 ): Event[] {
   const contains = (value: string, query?: string) =>
     !query || value.toLowerCase().includes(query.trim().toLowerCase());
@@ -45,6 +48,8 @@ export function filterEvents(
         [event.venue.name, event.venue.city, event.venue.country].join(' '),
         filters.location
       ) &&
+      (!filters.city?.trim() ||
+        artistKey(event.venue.city) === artistKey(filters.city)) &&
       contains(event.genres.join(' '), filters.genre) &&
       (!filters.date || event.datetime?.slice(0, 10) === filters.date)
   );
@@ -74,18 +79,29 @@ export function collectArtists(events: Event[]): Artist[] {
   return [...artists.values()].sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export function collectVenues(events: Event[]): VenueData[] {
-  const venues = new Map<string, VenueData>();
+export function collectVenues(
+  events: Event[],
+  catalogue: VenueData[] = []
+): VenueData[] {
+  const venues = new Map<string, VenueData>(
+    catalogue.map((venue) => [venue.id, { ...venue, event_count: 0 }])
+  );
   for (const event of events) {
     const id = venueKey(event.venue);
     const existing = venues.get(id);
-    if (existing) existing.event_count += 1;
-    else
+    if (existing) {
+      existing.event_count += 1;
+      existing.genres = [
+        ...new Set([...(existing.genres || []), ...event.genres]),
+      ];
+      existing.image_url ||= event.image_url;
+    } else
       venues.set(id, {
         ...event.venue,
         id,
         event_count: 1,
         image_url: event.image_url,
+        genres: [...event.genres],
       });
   }
   return [...venues.values()].sort((a, b) => a.name.localeCompare(b.name));

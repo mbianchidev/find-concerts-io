@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
+import { artistKey } from '@/lib/concerts';
 import { AppError } from './errors';
 import { logger } from './logger';
 import { deliverNotification } from './notifications';
@@ -15,6 +16,21 @@ export interface Job {
 }
 
 const LEASE_MS = 10 * 60000;
+const collectionPayloadSchema = z.object({
+  force: z.boolean().default(false),
+  cities: z.array(z.string().trim().min(1).max(250)).max(20).default([]),
+});
+
+export function matchesCollectionRequest(
+  payload: string,
+  force: boolean,
+  cities: string[]
+): boolean {
+  const queued = collectionPayloadSchema.parse(JSON.parse(payload));
+  const key = (values: string[]) =>
+    JSON.stringify([...new Set(values.map(artistKey))].sort());
+  return queued.force === force && key(queued.cities) === key(cities);
+}
 
 export function claimJob(
   store: ConcertStore,
@@ -99,10 +115,12 @@ export async function runNextJob(
   }, 60000);
   try {
     if (job.kind === 'scrape') {
-      const payload = z
-        .object({ force: z.boolean().default(false) })
-        .parse(JSON.parse(job.payload));
-      const result = await collectConcerts(store, payload.force);
+      const payload = collectionPayloadSchema.parse(JSON.parse(job.payload));
+      const result = await collectConcerts(
+        store,
+        payload.force,
+        payload.cities
+      );
       if (result.some((source) => source.error))
         throw new AppError(
           502,

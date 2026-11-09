@@ -3,6 +3,7 @@ import { parseArgs } from 'node:util';
 import { z } from 'zod';
 import { ConcertStore } from '../src/server/store';
 import { concert } from './fixtures';
+import { venueKey } from '../src/lib/concerts';
 
 const { values } = parseArgs({
   options: { browser: { type: 'string', default: 'chromium' } },
@@ -13,7 +14,7 @@ const store = new ConcertStore(
 );
 try {
   store.db.exec(
-    'DELETE FROM users; DELETE FROM events; DELETE FROM jobs; DELETE FROM rate_limits; DELETE FROM metrics; DELETE FROM cache;'
+    'DELETE FROM users; DELETE FROM events; DELETE FROM venues; DELETE FROM jobs; DELETE FROM rate_limits; DELETE FROM metrics; DELETE FROM cache;'
   );
   const future = (offset: number) => {
     const date = new Date();
@@ -57,6 +58,20 @@ try {
       genres: ['Metal'],
       datetime: future(60),
     }),
+  ]);
+  const quiet = {
+    ...concert().venue,
+    name: 'Quiet Fictional Hall',
+    city: 'Quiet Example City',
+  };
+  store.upsertVenues([
+    {
+      ...quiet,
+      id: venueKey(quiet),
+      event_count: 0,
+      genres: ['Metal'],
+      source_url: 'https://calendar.example.test/quiet',
+    },
   ]);
   console.log('Dedicated synthetic browser-test database ready.');
 } finally {

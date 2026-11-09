@@ -48,12 +48,13 @@ export default function SourcesPage() {
     <main className="container" id="main" tabIndex={-1}>
       <PageIntro
         eyebrow="KNOW WHERE YOUR LISTINGS COME FROM"
-        title="Straight from the venues."
+        title="Back to the source."
       >
         <p>
-          Current coverage is two official venue websites in London, covering
-          metal, hardcore, rock, and punk. More sources are not guessed or
-          scraped indiscriminately.
+          Official venue pages in London, metal.de&apos;s public concert
+          calendar for Berlin, and Metal Agenda for Amsterdam, Haarlem, and
+          Utrecht. Coverage is verified against these sources, not an exhaustive
+          list of every gig.
         </p>
       </PageIntro>
       <div className="account-grid">
@@ -92,13 +93,16 @@ export default function SourcesPage() {
           <h2>A respectful collector.</h2>
           <p>
             Every run checks robots.txt, stays on curated HTTPS origins, waits
-            at least 1.5 seconds between requests, and reads at most 40 event
-            pages per venue.
+            at least 1.5 seconds between requests on the same origin, and reads
+            at most 40 detail pages per official venue. Berlin searches cover
+            the next year through the calendar&apos;s public search form.
           </p>
           <p className="muted-note">
             Blocked pages, missing dates, and changed layouts are reported.
             Access restrictions are not bypassed. Unknown dates and genres are
             never invented, and existing records are retained on failure.
+            Calendar categories are identified separately from artist subgenres.
+            Dates without a published start time stay all-day listings.
           </p>
           <p className="muted-note">
             Private workbook data is never sent to these websites. The app

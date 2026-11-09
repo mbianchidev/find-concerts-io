@@ -12,6 +12,7 @@ export interface EventSource {
   name: string;
   url: string;
   fetched_at: string;
+  genre_basis?: 'description' | 'calendar';
 }
 
 export interface ImportDetails {
@@ -58,6 +59,9 @@ export interface VenueData extends Venue {
   id: string;
   event_count: number;
   image_url?: string;
+  genres?: string[];
+  url?: string;
+  source_url?: string;
 }
 
 export interface Tour {
@@ -72,6 +76,7 @@ export interface Tour {
 }
 
 export interface SearchFilters {
+  city?: string;
   location?: string;
   artist?: string;
   date?: string;

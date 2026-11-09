@@ -60,6 +60,52 @@ test('discovery searches support acts, venues, genres, and restores clear filter
   ).toBeVisible();
 });
 
+test('city selection persists in URLs, resets pagination, clears, and includes zero-show venues', async ({
+  page,
+}) => {
+  await page.goto('/?page=2');
+  await page
+    .getByLabel('City', { exact: true })
+    .selectOption('Other Example City');
+  await page.getByRole('button', { name: 'Find shows', exact: true }).click();
+  await expect(page).toHaveURL(/city=Other/);
+  expect(new URL(page.url()).searchParams.has('page')).toBe(false);
+  await expect(
+    page.getByRole('link', { name: 'View Synthetic Stereo Test', exact: true })
+  ).toBeVisible();
+  await expect(
+    page.getByRole('link', { name: 'View Synthetic Voltage', exact: true })
+  ).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByLabel('City', { exact: true })).toHaveValue(
+    'Other Example City'
+  );
+  await page.getByRole('button', { name: 'Clear', exact: true }).click();
+  await expect(page.getByLabel('City', { exact: true })).toHaveValue('');
+  await expect(
+    page.getByRole('link', { name: 'View Synthetic Voltage', exact: true })
+  ).toBeVisible();
+  await register(page);
+  await page.goto('/venues/?city=Quiet+Example+City');
+  await expect(
+    page.getByRole('heading', { name: 'Quiet Fictional Hall', exact: true })
+  ).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Fictional Room', exact: true })
+  ).toHaveCount(0);
+  await page.getByRole('button', { name: 'Follow venue', exact: true }).click();
+  await expect(
+    page.getByRole('button', { name: 'Following venue', exact: true })
+  ).toHaveAttribute('aria-pressed', 'true');
+  await page.reload();
+  await expect(page.getByLabel('City', { exact: true })).toHaveValue(
+    'Quiet Example City'
+  );
+  await expect(
+    page.getByRole('button', { name: 'Following venue', exact: true })
+  ).toHaveAttribute('aria-pressed', 'true');
+});
+
 test('account follows and saves survive reload and drive recommendations and calendar export', async ({
   page,
 }) => {

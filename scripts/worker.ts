@@ -7,6 +7,7 @@ async function main() {
   loadEnvConfig(process.cwd());
   const { getStore } = await import('../src/server/store');
   const { runNextJob } = await import('../src/server/jobs');
+  const { collectionDue } = await import('../src/server/scraper');
   const { logger } = await import('../src/server/logger');
   const interval = process.env.SCRAPE_INTERVAL_MINUTES
     ? z.coerce
@@ -53,16 +54,7 @@ async function main() {
       store.db
         .prepare('DELETE FROM email_verifications WHERE expires_at <= ?')
         .run(Date.now());
-      if (interval) {
-        const latest = store.db
-          .prepare('SELECT max(last_run) AS last_run FROM source_runs')
-          .get();
-        if (
-          !latest?.last_run ||
-          Date.now() - Date.parse(String(latest.last_run)) >= interval
-        )
-          store.enqueue('scrape');
-      }
+      if (interval && collectionDue(store, interval)) store.enqueue('scrape');
       if (!(await runNextJob(store, id))) {
         try {
           await pause(5000, undefined, { signal: shutdown.signal });

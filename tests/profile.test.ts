@@ -84,7 +84,7 @@ test('profile migration preserves legacy accounts, sessions, and private concert
     );
     assert.equal(
       store.db.prepare('PRAGMA user_version').get()?.user_version,
-      2
+      3
     );
   } finally {
     store.close();

@@ -1,6 +1,6 @@
 # Find Concerts IO
 
-Find metal, hardcore, rock, and punk shows from original venue listings. Save concerts, follow artists and venues, get recommendations, export calendars, and manage your private concert history and profile.
+Find metal, hardcore, rock, and punk shows from venue websites and specialist calendars. Filter by city, save concerts, follow venues even without upcoming listings, get recommendations, export calendars, and manage your private concert history and profile.
 
 Next.js, React, TypeScript, TanStack Query, and SQLite. This is a **full-stack Node app**, not a static GitHub Pages export.
 

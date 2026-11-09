@@ -5,14 +5,35 @@ import { randomUUID } from 'node:crypto';
 async function main() {
   loadEnvConfig(process.cwd());
   const { values } = parseArgs({
-    options: { force: { type: 'boolean', default: false } },
+    options: {
+      force: { type: 'boolean', default: false },
+      city: { type: 'string', multiple: true, default: [] },
+    },
   });
   const { sourceStatuses } = await import('../src/server/scraper');
-  const { runNextJob } = await import('../src/server/jobs');
+  const { runNextJob, matchesCollectionRequest } =
+    await import('../src/server/jobs');
   const { getStore } = await import('../src/server/store');
   const store = getStore();
   try {
-    const id = store.enqueue('scrape', { force: values.force });
+    const id = store.enqueue('scrape', {
+      force: values.force,
+      cities: values.city,
+    });
+    const queued = store.db
+      .prepare('SELECT payload FROM jobs WHERE id = ?')
+      .get(id);
+    if (
+      !queued ||
+      !matchesCollectionRequest(
+        String(queued.payload),
+        values.force ?? false,
+        values.city ?? []
+      )
+    )
+      throw new Error(
+        'Another collector job has different city or force options. Wait for it to finish; its scope was not changed and no second collector was started.'
+      );
     if (!(await runNextJob(store, randomUUID(), id)))
       throw new Error(
         'The collector job is already running in another worker. Check /sources for its status; no second collector was started.'

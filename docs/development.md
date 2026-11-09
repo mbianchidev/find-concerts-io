@@ -22,21 +22,44 @@ npm run scrape
 # Explicitly ignore the app's 15-minute source cooldown, not robots.txt.
 npm run scrape -- --force
 
+# Collect only configured sources for these cities.
+npm run scrape -- --city Berlin --city Amsterdam --city Haarlem --city Utrecht
+
 # Grant an existing account administrator access from the server console.
 npm run account:admin -- --username existing-account
 ```
 
-With `SCRAPE_INTERVAL_MINUTES=360`, the worker checks the venues every six hours.
+With `SCRAPE_INTERVAL_MINUTES=360`, collection becomes due when any configured
+source is uncollected or six hours old. Refreshing one city does not postpone
+other sources. City options are repeatable and case-insensitive; unsupported
+cities fail explicitly. If a collector job with different options is already
+queued, the CLI reports the conflict instead of silently ignoring its requested scope.
 Omit that variable for queue-only operation. Administrators can queue collection
 at `/sources` when the worker is online. No public registration can claim admin.
 The CLI, web app, and worker must use the **same `DATABASE_PATH`**.
 
-Collection currently covers The Underworld and The Black Heart in London.
-It checks robots.txt, honors crawl delay, waits at least 1.5 seconds between
-requests, stays on curated HTTPS origins, and caps each venue at 40 detail pages.
-There is no browser challenge bypass, login scraping, proxy rotation, or hidden
-API scraping. Unsupported genres, missing dates, and source failures are
-reported; failed sources do not erase existing records.
+Collection covers The Underworld and The Black Heart in London, metal.de's
+public concert calendar for Berlin, and Metal Agenda for Amsterdam, Haarlem,
+and Utrecht. Dutch city calendars also list surrounding towns; those are excluded
+unless their exact city matches. Additional verified venue profiles retain rooms
+with no currently listed gigs. Coverage is not a guarantee of every venue or show.
+
+The collector checks robots.txt once per origin per run, honors crawl delay,
+and waits at least 1.5 seconds between requests, including redirects. A 403 or
+429 stops further requests to that origin. Official venue adapters read at most
+40 detail pages; Berlin uses the published concert-search form and its current
+genre taxonomy for a bounded one-year range. No forbidden calendar-export feeds,
+browser challenges, logins, proxies, or private APIs are used.
+
+Calendar categories are not independently verified artist subgenres. Dates without
+published start times remain all-day records; unknown coordinates remain unknown.
+Source errors and changed layouts are explicit. Failures do not erase existing
+records, and known cancellations/postponements refresh previously collected gigs.
+
+Schema version 3 adds a public venue catalogue and backfills only public events.
+It preserves accounts, sessions, follows, and private imports. Stop both services
+before restoring a protected pre-upgrade backup with a compatible app version.
+Do not reset the database or edit its schema-version marker to force a downgrade.
 
 ## Verification
 

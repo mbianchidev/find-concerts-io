@@ -55,6 +55,7 @@ export const eventSchema: z.ZodType<Event> = z.object({
     name: z.string().max(300),
     url: link,
     fetched_at: z.string().max(80),
+    genre_basis: z.enum(['description', 'calendar']).optional(),
   }),
   status: z.enum(['scheduled', 'cancelled', 'postponed', 'sold_out']),
   popularity: z.number().int().nonnegative(),
@@ -199,6 +200,9 @@ export const venueSchema: z.ZodType<VenueData> = z.object({
   country: z.string(),
   event_count: z.number(),
   image_url: z.string().optional(),
+  genres: z.array(z.string().max(100)).max(30).optional(),
+  url: link.optional(),
+  source_url: link.optional(),
 });
 
 export const tourSchema: z.ZodType<Tour> = z.object({

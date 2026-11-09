@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type { z } from 'zod';
 import type { SearchFilters } from '@/types';
 import { useApiPage } from '@/lib/api';
@@ -8,45 +9,76 @@ import SearchBar from './SearchBar';
 import GenreFilters from './GenreFilters';
 import { ErrorState, LoadingGrid, PageIntro, Pager } from './Ui';
 
-export default function DirectoryPage<T>({
-  endpoint,
-  schema,
-  title,
-  eyebrow,
-  description,
-  render,
-}: {
+interface DirectoryPageProps<T> {
   endpoint: string;
   schema: z.ZodType<T>;
   title: string;
   eyebrow: string;
   description: string;
   render: (items: T[]) => React.ReactNode;
-}) {
-  const [filters, setFilters] = useState<SearchFilters>({});
-  const [page, setPage] = useState(1);
-  const params = new URLSearchParams({ page: String(page), limit: '12' });
+}
+
+function DirectoryContent<T>({
+  endpoint,
+  schema,
+  title,
+  eyebrow,
+  description,
+  render,
+}: DirectoryPageProps<T>) {
+  const search = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const filters: SearchFilters = {
+    city: search.get('city') || undefined,
+    location: search.get('location') || undefined,
+    artist: search.get('artist') || undefined,
+    date: search.get('date') || undefined,
+    genre: search.get('genre') || undefined,
+  };
+  const page = search.get('page') || '1';
+  const params = new URLSearchParams({ page, limit: '12' });
   Object.entries(filters).forEach(([name, value]) => {
     if (typeof value === 'string' && value) params.set(name, value);
   });
   const results = useApiPage(`${endpoint}?${params}`, schema);
+  const update = (values: Record<string, string | undefined>) => {
+    const next = new URLSearchParams(search);
+    next.delete('page');
+    Object.entries(values).forEach(([name, value]) => {
+      if (value) next.set(name, value);
+      else next.delete(name);
+    });
+    router.replace(`${pathname}${next.size ? `?${next}` : ''}`, {
+      scroll: false,
+    });
+  };
   return (
     <main className="container" id="main" tabIndex={-1}>
       <PageIntro eyebrow={eyebrow} title={title}>
         <p>{description}</p>
       </PageIntro>
       <SearchBar
+        key={[
+          filters.artist,
+          filters.city,
+          filters.location,
+          filters.date,
+        ].join('|')}
+        initial={filters}
         onSearch={(next) => {
-          setFilters(next);
-          setPage(1);
+          update({
+            city: next.city,
+            location: next.location,
+            artist: next.artist,
+            date: next.date,
+            genre: Object.keys(next).length ? filters.genre : undefined,
+          });
         }}
       />
       <GenreFilters
         value={filters.genre}
-        onChange={(genre) => {
-          setFilters({ ...filters, genre });
-          setPage(1);
-        }}
+        onChange={(genre) => update({ genre })}
       />
       <section className="directory-results" aria-label={title}>
         <ErrorState
@@ -65,15 +97,29 @@ export default function DirectoryPage<T>({
                 {render(results.data.data)}
               </div>
               <Pager
-                page={page}
+                page={results.data.meta.page}
                 total={results.data.meta.total}
                 hasNext={results.data.meta.has_next}
-                onChange={setPage}
+                onChange={(value) => update({ page: String(value) })}
               />
             </>
           )
         )}
       </section>
     </main>
+  );
+}
+
+export default function DirectoryPage<T>(props: DirectoryPageProps<T>) {
+  return (
+    <Suspense
+      fallback={
+        <main className="container" id="main">
+          <LoadingGrid />
+        </main>
+      }
+    >
+      <DirectoryContent {...props} />
+    </Suspense>
   );
 }

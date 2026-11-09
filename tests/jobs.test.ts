@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { claimJob, completeJob } from '../src/server/jobs';
+import {
+  claimJob,
+  completeJob,
+  matchesCollectionRequest,
+} from '../src/server/jobs';
 import { ConcertStore } from '../src/server/store';
 
 test('durable jobs have exclusive leases and stale workers cannot complete reassigned work', () => {
@@ -24,4 +28,24 @@ test('durable jobs have exclusive leases and stale workers cannot complete reass
   } finally {
     store.close();
   }
+});
+
+test('a queued collector cannot silently replace a different city scope or force option', () => {
+  assert.equal(matchesCollectionRequest('{}', false, []), true);
+  const payload = JSON.stringify({
+    force: false,
+    cities: ['Example City', 'Other City'],
+  });
+  assert.equal(
+    matchesCollectionRequest(payload, false, [' other city ', 'EXAMPLE CITY']),
+    true
+  );
+  assert.equal(
+    matchesCollectionRequest(payload, false, ['Example City']),
+    false
+  );
+  assert.equal(
+    matchesCollectionRequest(payload, true, ['Example City', 'Other City']),
+    false
+  );
 });

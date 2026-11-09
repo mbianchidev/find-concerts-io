@@ -3,7 +3,9 @@ import test from 'node:test';
 import { mkdtempSync, rmSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { DatabaseSync } from 'node:sqlite';
 import { ConcertStore } from '../src/server/store';
+import { venueKey } from '../src/lib/concerts';
 import { concert } from './fixtures';
 
 test('private records persist after reopening a permission-restricted database', () => {
@@ -85,5 +87,68 @@ test('public event updates create deduplicated notifications for followed suppor
     assert.equal(store.notifications(user.id)[0].event_id, 'synthetic-show');
   } finally {
     store.close();
+  }
+});
+
+test('venues persist without upcoming gigs and a v2 migration preserves accounts, private rows, and follows', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'concerts-venues-synthetic-'));
+  const path = join(directory, 'test.sqlite');
+  let store: ConcertStore | undefined = new ConcertStore(path);
+  try {
+    const user = store.createUser('synthetic-venue-owner', 'synthetic-hash');
+    store.importEvents(user.id, {
+      events: [concert({ is_private: true })],
+      report: { total: 1, imported: 0, duplicates: 0, skipped: 0, issues: [] },
+    });
+    store.setSaved(user.id, 'artist', 'synthetic-existing-follow', true);
+    const original = store.events(user.id, true);
+    store.close();
+    store = undefined;
+    const legacy = new DatabaseSync(path);
+    legacy.exec('DROP TABLE IF EXISTS venues; PRAGMA user_version = 2;');
+    legacy.close();
+    store = new ConcertStore(path);
+    const venue = concert().venue;
+    const id = venueKey(venue);
+    store.upsertVenues([
+      {
+        ...venue,
+        id,
+        event_count: 0,
+        genres: ['Metal'],
+        source_url: 'https://calendar.example.test/venues/synthetic',
+      },
+    ]);
+    store.setSaved(user.id, 'venue', id, true);
+    store.upsertPublic([
+      concert({ datetime: '2099-04-03', genres: ['Metal'] }),
+    ]);
+    assert.equal(store.venues()[0].event_count, 1);
+    assert.equal(store.notifications(user.id).length, 1);
+    store.upsertPublic([
+      concert({ datetime: '2000-04-03', genres: ['Metal'] }),
+    ]);
+    assert.equal(store.venues()[0].event_count, 0);
+    store.close();
+    store = new ConcertStore(path);
+    assert.equal(store.venues()[0].id, id);
+    assert.equal(
+      store.venues()[0].source_url,
+      'https://calendar.example.test/venues/synthetic'
+    );
+    assert.equal(store.venues()[0].event_count, 0);
+    assert.deepEqual(store.events(user.id, true), original);
+    assert.equal(
+      store.credentials(user.username)?.password_hash,
+      'synthetic-hash'
+    );
+    assert.equal(store.saves(user.id).length, 2);
+    assert.equal(
+      store.db.prepare('PRAGMA user_version').get()?.user_version,
+      3
+    );
+  } finally {
+    store?.close();
+    rmSync(directory, { recursive: true, force: true });
   }
 });

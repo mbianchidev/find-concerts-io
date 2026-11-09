@@ -5,12 +5,10 @@ import {
   artistKey,
   collectArtists,
   collectTours,
-  collectVenues,
   filterEvents,
   isUpcoming,
   recommendEvents,
   trendingEvents,
-  venueKey,
 } from '@/lib/concerts';
 import { calendarFile } from '@/lib/calendar';
 import {
@@ -44,6 +42,7 @@ const pagination = z.object({
   page: z.coerce.number().int().min(1).max(10000).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(24),
   artist: z.string().max(250).optional(),
+  city: z.string().trim().max(250).optional(),
   location: z.string().max(250).optional(),
   date: z
     .string()
@@ -200,6 +199,24 @@ async function route(request: Request, store: ConcertStore): Promise<Response> {
         store.cached('public-catalogue', 30000, () => store.events(null, true))
       );
 
+  if (['cities', 'me/cities'].includes(path) && method === 'GET') {
+    const venues = [
+      ...store.venues(catalogue()),
+      ...(path === 'me/cities'
+        ? store
+            .events(requireUser(request, store).id, true)
+            .map((event) => event.venue)
+        : []),
+    ];
+    const cities = new Map(
+      venues
+        .map((venue) => venue.city.trim())
+        .filter(Boolean)
+        .map((city) => [artistKey(city), city])
+    );
+    return data([...cities.values()].sort((a, b) => a.localeCompare(b)));
+  }
+
   if (path === 'events' && method === 'GET') {
     const filters = query();
     let events = catalogue();
@@ -256,11 +273,16 @@ async function route(request: Request, store: ConcertStore): Promise<Response> {
         },
       });
     }
-    if (eventRoute[2] === 'similar')
+    if (eventRoute[2] === 'similar') {
+      const filters = query();
       return page(
-        recommendEvents(store.events(null), [], undefined, event),
-        query()
+        filterEvents(
+          recommendEvents(store.events(null), [], undefined, event),
+          filters
+        ),
+        filters
       );
+    }
     return data(event);
   }
   if (['artists', 'venues', 'tours'].includes(path) && method === 'GET') {
@@ -275,7 +297,34 @@ async function route(request: Request, store: ConcertStore): Promise<Response> {
         ),
         filters
       );
-    if (path === 'venues') return page(collectVenues(events), filters);
+    if (path === 'venues') {
+      const saved =
+        filters.saved === 'true'
+          ? new Set(
+              store
+                .saves(requireUser(request, store).id)
+                .filter((item) => item.type === 'venue')
+                .map((item) => item.id)
+            )
+          : undefined;
+      const contains = (value: string, search?: string) =>
+        !search || artistKey(value).includes(artistKey(search));
+      const venues = store
+        .venues(events)
+        .filter(
+          (venue) =>
+            (!filters.city ||
+              artistKey(venue.city) === artistKey(filters.city)) &&
+            contains(
+              [venue.name, venue.city, venue.country].join(' '),
+              filters.location
+            ) &&
+            contains((venue.genres || []).join(' '), filters.genre) &&
+            (!(filters.artist || filters.date) || venue.event_count > 0) &&
+            (!saved || saved.has(venue.id))
+        );
+      return page(venues, filters);
+    }
     return page(collectTours(events), filters);
   }
   if (path === 'sources' && method === 'GET')
@@ -337,7 +386,7 @@ async function route(request: Request, store: ConcertStore): Promise<Response> {
           ? events.some((event) =>
               event.lineup.some((name) => artistKey(name) === input.id)
             )
-          : events.some((event) => venueKey(event.venue) === input.id);
+          : store.venues(events).some((venue) => venue.id === input.id);
     if (input.saved && !exists)
       throw new AppError(
         404,

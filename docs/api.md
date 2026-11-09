@@ -7,40 +7,62 @@ accepts limits up to 100. Errors use
 `{ error: { code, message, request_id, details? } }`. Responses carry a matching
 `X-Request-ID` and are never publicly cached by the browser.
 
-| Resource                              | Methods           | Access                                                                            |
-| ------------------------------------- | ----------------- | --------------------------------------------------------------------------------- |
-| `/health`                             | GET               | Public runtime capabilities and readiness                                         |
-| `/users`                              | POST              | Register `{ username, password }`, normal role only                               |
-| `/sessions`                           | POST              | Sign in `{ username, password }`                                                  |
-| `/sessions/current`                   | GET, DELETE       | Current account or null; revoke this session                                      |
-| `/events`                             | GET               | Public concerts only                                                              |
-| `/events/:id`                         | GET               | Public or owner-authorized detail                                                 |
-| `/events/:id/calendar`                | GET               | Owner-aware `.ics` download                                                       |
-| `/events/:id/similar`                 | GET               | Similar upcoming public concerts                                                  |
-| `/artists`, `/venues`, `/tours`       | GET               | Derived public directories                                                        |
-| `/sources`                            | GET               | Venue collection status and errors                                                |
-| `/me/events`, `/me/saved-events`      | GET               | Private history / saved public and private concerts                               |
-| `/me/recommendations`                 | GET               | Account-specific public recommendations                                           |
-| `/me/saved`                           | GET, PUT          | `{ type: event/artist/venue, id, saved: boolean }`                                |
-| `/imports/preview`                    | POST              | Owner-only multipart `file`                                                       |
-| `/imports`                            | POST, GET         | Multipart `file` and JSON `mappings`; recent reports                              |
-| `/notifications`                      | GET, PATCH        | Inbox; mark one `{ id }` or all `{}` as read                                      |
-| `/push-config`                        | GET               | Notification capability flags and public VAPID key                                |
-| `/push-subscriptions`                 | GET, POST, DELETE | Current session's browser push                                                    |
-| `/email-verifications`                | POST              | Send opt-in confirmation `{ email }`                                              |
-| `/email-verifications/confirm`        | POST              | Confirm `{ token }` while signed in                                               |
-| `/me`                                 | PATCH, DELETE     | Email preference / password-confirmed account deletion                            |
-| `/me/profile`                         | GET, PATCH        | Private display name, location, and bio; username and role cannot be changed here |
-| `/me/password`                        | PATCH             | Current-password verification, matching new passwords, and session rotation       |
-| `/me/export`                          | GET               | Private account-data download, no credential material                             |
-| `/jobs`                               | GET, POST         | Admin-only worker status and `{ type: scrape }`                                   |
-| `/metrics`                            | POST, GET         | Opted-in anonymous metrics / admin aggregates                                     |
-| `/integrations/spotify/artists`       | GET               | Authenticated explicit artist search `?q=`                                        |
-| `/integrations/ticketmaster/searches` | POST              | Authenticated `{ q, city?, genre? }`                                              |
+City facets and source-status lookups return `{ data: [...] }` without pagination.
+City options include persistent public venues, even with no upcoming concerts.
 
-List filters: `artist`, `location`, `date=YYYY-MM-DD`, `genre`, and where applicable
+| Resource                              | Methods           | Access                                                                                  |
+| ------------------------------------- | ----------------- | --------------------------------------------------------------------------------------- |
+| `/health`                             | GET               | Public runtime capabilities and readiness                                               |
+| `/users`                              | POST              | Register `{ username, password }`, normal role only                                     |
+| `/sessions`                           | POST              | Sign in `{ username, password }`                                                        |
+| `/sessions/current`                   | GET, DELETE       | Current account or null; revoke this session                                            |
+| `/events`                             | GET               | Public concerts only                                                                    |
+| `/events/:id`                         | GET               | Public or owner-authorized detail                                                       |
+| `/events/:id/calendar`                | GET               | Owner-aware `.ics` download                                                             |
+| `/events/:id/similar`                 | GET               | Similar upcoming public concerts                                                        |
+| `/artists`, `/tours`                  | GET               | Derived public directories                                                              |
+| `/venues`                             | GET               | Persistent public venues and filtered upcoming counts; `saved=true` requires an account |
+| `/cities`                             | GET               | Public city facet; never includes private import locations                              |
+| `/me/cities`                          | GET               | Public cities plus the signed-in owner's explicitly mapped private cities               |
+| `/sources`                            | GET               | Venue collection status and errors                                                      |
+| `/me/events`, `/me/saved-events`      | GET               | Private history / saved public and private concerts                                     |
+| `/me/recommendations`                 | GET               | Account-specific public recommendations                                                 |
+| `/me/saved`                           | GET, PUT          | `{ type: event/artist/venue, id, saved: boolean }`                                      |
+| `/imports/preview`                    | POST              | Owner-only multipart `file`                                                             |
+| `/imports`                            | POST, GET         | Multipart `file` and JSON `mappings`; recent reports                                    |
+| `/notifications`                      | GET, PATCH        | Inbox; mark one `{ id }` or all `{}` as read                                            |
+| `/push-config`                        | GET               | Notification capability flags and public VAPID key                                      |
+| `/push-subscriptions`                 | GET, POST, DELETE | Current session's browser push                                                          |
+| `/email-verifications`                | POST              | Send opt-in confirmation `{ email }`                                                    |
+| `/email-verifications/confirm`        | POST              | Confirm `{ token }` while signed in                                                     |
+| `/me`                                 | PATCH, DELETE     | Email preference / password-confirmed account deletion                                  |
+| `/me/profile`                         | GET, PATCH        | Private display name, location, and bio; username and role cannot be changed here       |
+| `/me/password`                        | PATCH             | Current-password verification, matching new passwords, and session rotation             |
+| `/me/export`                          | GET               | Private account-data download, no credential material                                   |
+| `/jobs`                               | GET, POST         | Admin-only worker status and `{ type: scrape }`                                         |
+| `/metrics`                            | POST, GET         | Opted-in anonymous metrics / admin aggregates                                           |
+| `/integrations/spotify/artists`       | GET               | Authenticated explicit artist search `?q=`                                              |
+| `/integrations/ticketmaster/searches` | POST              | Authenticated `{ q, city?, genre? }`                                                    |
+
+List filters: `artist`, `city`, `location`, `date=YYYY-MM-DD`, `genre`, and where applicable
 `past=true`, `saved=true`, or `view=trending`. The public event endpoint accepts
 at most 30 comma-separated `ids` for guest shortlists and never resolves private IDs.
+
+`city` is a trimmed, case-insensitive, NFKC-normalized full-city match, with a
+250-character limit. It does not match venue names or nearby towns. It combines
+with other filters on discovery, recommendations, similar concerts, saved/private
+concerts, and directories. `location` remains the broader venue/city/country search.
+
+Venue records may include `genres`, `source_url`, and an optional venue-website `url`.
+Their stable IDs also validate follows when `event_count` is zero. City, location,
+and genre filters can return these empty venues; artist/date filters require a
+matching upcoming gig. Counts describe collected matching shows, not a claim that
+the venue has no other concerts.
+
+Event sources may include `genre_basis: "calendar"` or `"description"`.
+Specialist-calendar categories are not independently verified artist subgenres.
+An explicit concert date without a published start time uses `date_only: true`;
+no local start time or UTC offset is invented.
 
 Mutations require an `Origin` equal to `APP_ORIGIN`. JSON mutations require
 `application/json`; imports require multipart forms. Session cookies are

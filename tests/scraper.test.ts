@@ -6,7 +6,13 @@ import {
   SOURCES,
   trustedSourceUrl,
   discoverEventLinks,
+  collectConcerts,
+  shouldRefreshSourceEvent,
+  collectionDue,
 } from '../src/server/scraper';
+import { CALENDAR_SOURCES } from '../src/server/calendars';
+import { ConcertStore } from '../src/server/store';
+import { concert } from './fixtures';
 
 test('official page adapters classify only event content and preserve sold-out status', () => {
   const html = `<article class="event">
@@ -54,4 +60,103 @@ test('source requests cannot escape the curated HTTPS origin or fetch credential
     false
   );
   assert.deepEqual(classifyGenres('jazz festival'), []);
+});
+
+test('known cancelled and postponed shows must refresh rather than remain falsely scheduled', () => {
+  assert.equal(
+    shouldRefreshSourceEvent(concert({ datetime: '2099-01-01' }), false),
+    true
+  );
+  assert.equal(
+    shouldRefreshSourceEvent(concert({ status: 'cancelled' }), true),
+    true
+  );
+  assert.equal(
+    shouldRefreshSourceEvent(concert({ status: 'postponed' }), true),
+    true
+  );
+  assert.equal(
+    shouldRefreshSourceEvent(concert({ status: 'cancelled' }), false),
+    false
+  );
+  assert.equal(
+    shouldRefreshSourceEvent(concert({ datetime: '2000-01-01' }), true),
+    false
+  );
+});
+
+test('refreshing one city cannot postpone another source that is due for scheduled collection', () => {
+  const store = new ConcertStore(':memory:');
+  const now = Date.parse('2030-01-01T12:00:00Z');
+  const interval = 6 * 60 * 60 * 1000;
+  try {
+    assert.equal(collectionDue(store, interval, now), true);
+    for (const source of [...SOURCES, ...CALENDAR_SOURCES]) {
+      store.db
+        .prepare('INSERT INTO source_runs VALUES (?, ?, 0, NULL)')
+        .run(source.id, new Date(now).toISOString());
+    }
+    assert.equal(collectionDue(store, interval, now), false);
+    store.db
+      .prepare('UPDATE source_runs SET last_run=? WHERE id=?')
+      .run(new Date(now - interval - 1).toISOString(), SOURCES[0].id);
+    assert.equal(collectionDue(store, interval, now), true);
+  } finally {
+    store.close();
+  }
+});
+
+test('city-scoped collection checks robots before requesting a calendar and preserves existing gigs', async (context) => {
+  const store = new ConcertStore(':memory:');
+  const calls: string[] = [];
+  context.mock.method(
+    globalThis,
+    'fetch',
+    async (input: string | URL | Request) => {
+      const url = String(input);
+      calls.push(url);
+      return new Response('User-agent: *\nDisallow: /p/amsterdam\n', {
+        status: url === 'https://www.metalagenda.nl/robots.txt' ? 200 : 403,
+      });
+    }
+  );
+  try {
+    store.upsertPublic([concert()]);
+    const results = await collectConcerts(store, true, ['Amsterdam']);
+    assert.equal(results.length, 1);
+    assert.match(results[0].error || '', /robots\.txt disallows/);
+    assert.deepEqual(calls, ['https://www.metalagenda.nl/robots.txt']);
+    assert.equal(store.events(null, true).length, 1);
+  } finally {
+    store.close();
+  }
+});
+
+test('a failed robots request is not retried for other city calendars on the same origin', async (context) => {
+  const store = new ConcertStore(':memory:');
+  const calls: string[] = [];
+  context.mock.method(
+    globalThis,
+    'fetch',
+    async (input: string | URL | Request) => {
+      calls.push(String(input));
+      return new Response('', { status: 503 });
+    }
+  );
+  try {
+    const results = await collectConcerts(store, true, [
+      'Amsterdam',
+      'Haarlem',
+      'Utrecht',
+    ]);
+    assert.equal(results.length, 3);
+    assert.ok(
+      results.every((result) =>
+        result.error?.includes('robots.txt returned HTTP 503')
+      )
+    );
+    assert.deepEqual(calls, ['https://www.metalagenda.nl/robots.txt']);
+  } finally {
+    store.close();
+  }
 });

@@ -398,6 +398,8 @@ export default function ImportPage() {
               </div>
             </div>
             <SearchBar
+              citiesPath="/me/cities"
+              scope={user.id}
               onSearch={(next) => {
                 setFilters(next);
                 setPage(1);

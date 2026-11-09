@@ -26,6 +26,7 @@ function Discovery() {
   const filters = {
     artist: params.get('artist') || undefined,
     location: params.get('location') || undefined,
+    city: params.get('city') || undefined,
     date: params.get('date') || undefined,
     genre,
   };
@@ -78,7 +79,7 @@ function Discovery() {
               <a className="show-link" href="#shows">
                 Explore the listings <Icon name="arrow" />
               </a>
-              <span className="hero-note">Straight from the venues</span>
+              <span className="hero-note">Venue and specialist calendars</span>
             </div>
           </div>
           <div className="gig-pass" aria-hidden="true">
@@ -103,7 +104,12 @@ function Discovery() {
           </div>
         </section>
         <SearchBar
-          key={[filters.artist, filters.location, filters.date].join('|')}
+          key={[
+            filters.artist,
+            filters.city,
+            filters.location,
+            filters.date,
+          ].join('|')}
           initial={filters}
           onSearch={(next) =>
             update(
@@ -111,11 +117,13 @@ function Discovery() {
                 ? {
                     artist: next.artist,
                     location: next.location,
+                    city: next.city,
                     date: next.date,
                   }
                 : {
                     artist: undefined,
                     location: undefined,
+                    city: undefined,
                     date: undefined,
                     genre: undefined,
                   }
@@ -137,14 +145,14 @@ function Discovery() {
                 {view === 'for-you'
                   ? 'A little more your kind of loud.'
                   : view === 'trending'
-                    ? filters.location
-                      ? `Trending around ${filters.location}.`
+                    ? filters.city || filters.location
+                      ? `Trending around ${filters.city || filters.location}.`
                       : "On the scene's radar."
                     : 'Good nights ahead.'}
               </h2>
               <p className="result-count" role="status">
                 {results.data
-                  ? `${results.data.meta.total} ${results.data.meta.total === 1 ? 'show' : 'shows'}${view === 'trending' ? ' ranked by real account saves' : ' from original venue listings'}`
+                  ? `${results.data.meta.total} ${results.data.meta.total === 1 ? 'show' : 'shows'}${view === 'trending' ? ' ranked by real account saves' : ' from venue and specialist calendars'}`
                   : view === 'for-you' && !user
                     ? 'Personal recommendations, without the noise.'
                     : 'Finding the next good night...'}
@@ -225,7 +233,7 @@ function Discovery() {
           </section>
         )}
         <div className="source-strip">
-          <span>ORIGINAL LISTINGS. ALWAYS CHECK WITH THE VENUE.</span>
+          <span>SOURCED LISTINGS. ALWAYS CHECK WITH THE VENUE.</span>
           {sources.data?.map((source) => (
             <a
               key={source.id}

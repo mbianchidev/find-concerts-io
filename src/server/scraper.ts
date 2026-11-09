@@ -11,6 +11,13 @@ import { logger } from './logger';
 import { eventSchema } from '@/lib/schema';
 import type { ConcertStore } from './store';
 import { readLimitedBody } from './http';
+import {
+  CALENDAR_SOURCES,
+  metalDeSearches,
+  parseMetalAgendaPage,
+  parseMetalDeCalendar,
+  type CalendarResult,
+} from './calendars';
 
 export interface ConcertSource {
   id: string;
@@ -51,6 +58,8 @@ export const SOURCES: ConcertSource[] = [
   },
 ];
 
+const COLLECTION_SOURCES = [...SOURCES, ...CALENDAR_SOURCES];
+
 const USER_AGENT =
   'FindConcertsIO/1.0 (+https://github.com/mbianchidev/find-concerts-io)';
 const MAX_PAGE_BYTES = 3 * 1024 * 1024;
@@ -67,7 +76,7 @@ const structuredEvent = z
 
 export function trustedSourceUrl(
   value: string,
-  source: ConcertSource
+  source: Pick<ConcertSource, 'url'>
 ): boolean {
   try {
     const url = new URL(value);
@@ -100,6 +109,17 @@ export function classifyGenres(text: string): string[] {
   return matches
     .filter(([, pattern]) => pattern.test(content))
     .map(([genre]) => genre);
+}
+
+export function shouldRefreshSourceEvent(
+  event: Event,
+  alreadyCollected: boolean
+): boolean {
+  return (
+    isUpcoming(event) ||
+    (alreadyCollected &&
+      (event.status === 'cancelled' || event.status === 'postponed'))
+  );
 }
 
 function findStructuredEvent(
@@ -301,8 +321,9 @@ export function discoverEventLinks(
 
 async function fetchPage(
   url: string,
-  source: ConcertSource,
+  source: Pick<ConcertSource, 'url'>,
   maxBytes = MAX_PAGE_BYTES,
+  beforeRequest?: (url: string) => Promise<void>,
   depth = 0
 ): Promise<{ status: number; text: string }> {
   if (!trustedSourceUrl(url, source) || depth > 3)
@@ -311,8 +332,12 @@ async function fetchPage(
       'UNTRUSTED_SOURCE',
       'Source requests must stay on the curated HTTPS origin.'
     );
+  await beforeRequest?.(url);
   const response = await fetch(url, {
-    headers: { 'User-Agent': USER_AGENT, Accept: 'text/html,text/plain;q=0.9' },
+    headers: {
+      'User-Agent': USER_AGENT,
+      Accept: 'text/html,application/json,text/plain;q=0.9',
+    },
     redirect: 'manual',
     signal: AbortSignal.timeout(20000),
   });
@@ -325,7 +350,13 @@ async function fetchPage(
         'SOURCE_REDIRECT',
         'The source returned a redirect without a destination.'
       );
-    return fetchPage(new URL(location, url).href, source, maxBytes, depth + 1);
+    return fetchPage(
+      new URL(location, url).href,
+      source,
+      maxBytes,
+      beforeRequest,
+      depth + 1
+    );
   }
   const body = await readLimitedBody(
     response.body,
@@ -342,8 +373,98 @@ async function fetchPage(
   };
 }
 
+interface SourcePolicy {
+  robots: ReturnType<typeof robotsParser>;
+  delay: number;
+  lastRequest: number;
+  blocked?: string;
+}
+
+async function sourceReader(
+  source: Pick<ConcertSource, 'url'>,
+  policies: Map<string, Promise<SourcePolicy>>
+) {
+  const origin = new URL(source.url).origin;
+  let policy = policies.get(origin);
+  if (!policy) {
+    policy = (async () => {
+      const robotsUrl = new URL('/robots.txt', source.url).href;
+      const response = await fetchPage(robotsUrl, source, 128 * 1024);
+      if (![200, 404].includes(response.status))
+        throw new AppError(
+          502,
+          'ROBOTS_UNAVAILABLE',
+          `robots.txt returned HTTP ${response.status}; collection was stopped.`
+        );
+      const robots = robotsParser(
+        robotsUrl,
+        response.status === 404 ? '' : response.text
+      );
+      return {
+        robots,
+        delay: Math.max(1500, (robots.getCrawlDelay(USER_AGENT) || 0) * 1000),
+        lastRequest: Date.now(),
+      };
+    })();
+    policies.set(origin, policy);
+  }
+  const access = await policy;
+  return {
+    allowed: (url: string) =>
+      access.robots.isAllowed(url, USER_AGENT) !== false,
+    read: async (url: string) => {
+      const response = await fetchPage(
+        url,
+        source,
+        MAX_PAGE_BYTES,
+        async (target) => {
+          if (access.blocked)
+            throw new AppError(502, 'SOURCE_ACCESS_LIMIT', access.blocked);
+          if (access.robots.isAllowed(target, USER_AGENT) === false)
+            throw new AppError(
+              403,
+              'ROBOTS_DISALLOWED',
+              'robots.txt disallows this source URL. No access restrictions were bypassed.'
+            );
+          await pause(
+            Math.max(0, access.delay - (Date.now() - access.lastRequest))
+          );
+          access.lastRequest = Date.now();
+        }
+      );
+      if ([403, 429].includes(response.status)) {
+        access.blocked = `The source returned HTTP ${response.status}; requests to this origin were stopped without bypassing the restriction.`;
+        throw new AppError(502, 'SOURCE_ACCESS_LIMIT', access.blocked);
+      }
+      return response;
+    },
+  };
+}
+
+export function collectionDue(
+  store: ConcertStore,
+  interval: number,
+  now = Date.now()
+): boolean {
+  const query = store.db.prepare(
+    'SELECT last_run FROM source_runs WHERE id = ?'
+  );
+  return COLLECTION_SOURCES.some((source) => {
+    const row = query.get(source.id);
+    if (!row) return true;
+    const last = Date.parse(String(row.last_run));
+    if (!Number.isFinite(last))
+      throw new AppError(
+        500,
+        'INVALID_SOURCE_RUN',
+        'A stored collection timestamp is invalid. Check the source run before scheduling.'
+      );
+    return now - last >= interval;
+  });
+}
+
 export function sourceStatuses(store: ConcertStore): SourceStatus[] {
-  return SOURCES.map((source) => {
+  return COLLECTION_SOURCES.map((source) => {
     const row = store.db
       .prepare('SELECT * FROM source_runs WHERE id = ?')
       .get(source.id);
@@ -362,7 +483,8 @@ export function sourceStatuses(store: ConcertStore): SourceStatus[] {
 
 export async function collectConcerts(
   store: ConcertStore,
-  force = false
+  force = false,
+  cities: string[] = []
 ): Promise<
   {
     source: string;
@@ -374,7 +496,23 @@ export async function collectConcerts(
   }[]
 > {
   const results = [];
-  for (const source of SOURCES) {
+  const allSources = COLLECTION_SOURCES;
+  const requested = new Set(cities.map(artistKey));
+  const cityOf = (source: (typeof allSources)[number]) =>
+    'parser' in source ? source.city : source.venue.city;
+  const available = new Set(
+    allSources.map((source) => artistKey(cityOf(source)))
+  );
+  if ([...requested].some((city) => !available.has(city)))
+    throw new AppError(
+      422,
+      'CITY_SOURCE_UNAVAILABLE',
+      'No configured collector exists for one or more requested cities. Check /sources before collecting.'
+    );
+  const policies = new Map<string, Promise<SourcePolicy>>();
+  for (const source of allSources.filter(
+    (entry) => !requested.size || requested.has(artistKey(cityOf(entry)))
+  )) {
     let collected = 0;
     let added = 0;
     let skipped = 0;
@@ -403,86 +541,134 @@ export async function collectConcerts(
       continue;
     }
     try {
-      const robotsUrl = new URL('/robots.txt', source.url).href;
-      const robotsResponse = await fetchPage(robotsUrl, source, 128 * 1024);
-      if (![200, 404].includes(robotsResponse.status))
-        throw new AppError(
-          502,
-          'ROBOTS_UNAVAILABLE',
-          `robots.txt returned HTTP ${robotsResponse.status}; collection was stopped.`
-        );
-      const robots = robotsParser(
-        robotsUrl,
-        robotsResponse.status === 404 ? '' : robotsResponse.text
-      );
-      const delay = Math.max(
-        1500,
-        (robots.getCrawlDelay(USER_AGENT) || 0) * 1000
-      );
-      if (robots.isAllowed(source.url, USER_AGENT) === false)
-        throw new AppError(
-          403,
-          'ROBOTS_DISALLOWED',
-          'robots.txt disallows this listing. No event pages were requested.'
-        );
-      await pause(delay);
-      const index = await fetchPage(source.url, source);
+      const reader = await sourceReader(source, policies);
+      const index = await reader.read(source.url);
       if (index.status !== 200)
         throw new AppError(
           502,
           'SOURCE_HTTP_ERROR',
           `The listing returned HTTP ${index.status}. No access restrictions were bypassed.`
         );
-      const links = discoverEventLinks(index.text, source);
-      if (!links.length)
-        throw new AppError(
-          502,
-          'SOURCE_LAYOUT_CHANGED',
-          'No event links were found. The source layout may have changed.'
-        );
       const warnings: string[] = [];
-      for (const url of links) {
-        if (robots.isAllowed(url, USER_AGENT) === false) {
-          skipped++;
-          warnings.push('An event page was excluded by robots.txt.');
-          continue;
+      if ('parser' in source) {
+        const pages: CalendarResult[] = [];
+        if (source.parser === 'metalagenda') {
+          pages.push(parseMetalAgendaPage(index.text, source));
+          for (const url of source.extraVenues || []) {
+            const page = await reader.read(url);
+            if (page.status !== 200)
+              throw new AppError(
+                502,
+                'SOURCE_HTTP_ERROR',
+                `A venue calendar returned HTTP ${page.status}.`
+              );
+            pages.push(parseMetalAgendaPage(page.text, source, url));
+          }
+        } else {
+          const endpoint = /var\s+ajaxurl\s*=\s*['"]([^'"]+)['"]/.exec(
+            index.text
+          )?.[1];
+          if (
+            !endpoint ||
+            endpoint !== new URL('/wp-admin/admin-ajax.php', source.url).href
+          )
+            throw new AppError(
+              502,
+              'SOURCE_LAYOUT_CHANGED',
+              'The calendar public search form endpoint could not be verified.'
+            );
+          for (const search of metalDeSearches(endpoint, index.text)) {
+            const page = await reader.read(search.url);
+            if (page.status !== 200)
+              throw new AppError(
+                502,
+                'SOURCE_HTTP_ERROR',
+                `The public concert search returned HTTP ${page.status}.`
+              );
+            pages.push(
+              parseMetalDeCalendar(
+                page.text,
+                source,
+                search.genres,
+                search.from,
+                search.until
+              )
+            );
+          }
         }
-        await pause(delay);
-        const page = await fetchPage(url, source);
-        if (page.status === 403 || page.status === 429)
+        const events = new Map<string, Event>();
+        for (const page of pages) {
+          warnings.push(...page.warnings);
+          skipped += page.skipped;
+          for (const event of page.events) {
+            if (!isUpcoming(event)) {
+              skipped++;
+              if (!shouldRefreshSourceEvent(event, !!store.event(event.id)))
+                continue;
+            }
+            const existing = events.get(event.id);
+            events.set(event.id, {
+              ...event,
+              genres: [
+                ...new Set([...(existing?.genres || []), ...event.genres]),
+              ],
+            });
+          }
+        }
+        store.upsertVenues(pages.flatMap((page) => page.venues));
+        added = store.upsertPublic([...events.values()]);
+        collected = [...events.values()].filter((event) =>
+          isUpcoming(event)
+        ).length;
+      } else {
+        const links = discoverEventLinks(index.text, source);
+        if (!links.length)
           throw new AppError(
             502,
-            'SOURCE_ACCESS_LIMIT',
-            `The source returned HTTP ${page.status}; requests were stopped without bypassing the restriction.`
+            'SOURCE_LAYOUT_CHANGED',
+            'No event links were found. The source layout may have changed.'
           );
-        if (page.status !== 200) {
-          skipped++;
-          warnings.push(`An event listing returned HTTP ${page.status}.`);
-          logger.warn(
-            { source: source.id, url, status: page.status },
-            'Concert listing could not be read'
-          );
-          continue;
-        }
-        try {
-          const event = parseSourcePage(page.text, url, source);
-          if (!event || !isUpcoming(event)) skipped++;
-          else {
-            added += store.upsertPublic([event]);
-            collected++;
+        for (const url of links) {
+          if (!reader.allowed(url)) {
+            skipped++;
+            warnings.push('An event page was excluded by robots.txt.');
+            continue;
           }
-        } catch (cause) {
-          skipped++;
-          warnings.push('An event date or record could not be verified.');
-          logger.warn(
-            { source: source.id, url, err: cause },
-            'Concert record was not imported'
-          );
+          const page = await reader.read(url);
+          if (page.status !== 200) {
+            skipped++;
+            warnings.push(`An event listing returned HTTP ${page.status}.`);
+            logger.warn(
+              { source: source.id, url, status: page.status },
+              'Concert listing could not be read'
+            );
+            continue;
+          }
+          try {
+            const event = parseSourcePage(page.text, url, source);
+            if (
+              !event ||
+              !shouldRefreshSourceEvent(event, !!store.event(event.id))
+            )
+              skipped++;
+            else {
+              added += store.upsertPublic([event]);
+              if (isUpcoming(event)) collected++;
+              else skipped++;
+            }
+          } catch (cause) {
+            skipped++;
+            warnings.push('An event date or record could not be verified.');
+            logger.warn(
+              { source: source.id, url, err: cause },
+              'Concert record was not imported'
+            );
+          }
         }
       }
       if (warnings.length)
         error = `${warnings.length} listing warning(s): ${[...new Set(warnings)].join(' ')}`;
-      if (!collected && !error)
+      if (!collected && !error && !('parser' in source))
         error =
           'No upcoming concerts with explicitly matching genre descriptions were found. Existing records were retained.';
     } catch (cause) {

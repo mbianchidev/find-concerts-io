@@ -59,6 +59,36 @@ test('search includes support acts, venues, and case-insensitive genres', () => 
   assert.equal(filterEvents(events, { genre: 'jazz' }).length, 0);
 });
 
+test('city filters match the complete normalized city, not venue names or nearby cities', () => {
+  const matching = concert();
+  const nearby = concert({
+    id: 'nearby',
+    venue: { ...matching.venue, city: 'Example City Heights' },
+  });
+  const misleading = concert({
+    id: 'misleading',
+    venue: {
+      ...matching.venue,
+      name: 'Example City Tribute Hall',
+      city: 'Other City',
+    },
+  });
+  const events = [matching, nearby, misleading];
+  assert.deepEqual(
+    filterEvents(events, {
+      city: '  EXAMPLE CITY  ',
+      artist: 'Mock Support',
+    }).map((event) => event.id),
+    ['synthetic-show']
+  );
+  assert.equal(filterEvents(events, { city: 'Example' }).length, 0);
+  assert.equal(
+    filterEvents(events, { city: 'Example City', genre: 'Jazz' }).length,
+    0
+  );
+  assert.equal(filterEvents(events, {}).length, 3);
+});
+
 test('recommendations use saved genres and followed support acts, excluding saved and past shows', () => {
   const seed = concert({ id: 'saved' });
   const next = concert({ id: 'next', lineup: ['Mock Support'] });
