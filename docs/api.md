@@ -7,34 +7,36 @@ accepts limits up to 100. Errors use
 `{ error: { code, message, request_id, details? } }`. Responses carry a matching
 `X-Request-ID` and are never publicly cached by the browser.
 
-| Resource                              | Methods           | Access                                                 |
-| ------------------------------------- | ----------------- | ------------------------------------------------------ |
-| `/health`                             | GET               | Public runtime capabilities and readiness              |
-| `/users`                              | POST              | Register `{ username, password }`, normal role only    |
-| `/sessions`                           | POST              | Sign in `{ username, password }`                       |
-| `/sessions/current`                   | GET, DELETE       | Current account or null; revoke this session           |
-| `/events`                             | GET               | Public concerts only                                   |
-| `/events/:id`                         | GET               | Public or owner-authorized detail                      |
-| `/events/:id/calendar`                | GET               | Owner-aware `.ics` download                            |
-| `/events/:id/similar`                 | GET               | Similar upcoming public concerts                       |
-| `/artists`, `/venues`, `/tours`       | GET               | Derived public directories                             |
-| `/sources`                            | GET               | Venue collection status and errors                     |
-| `/me/events`, `/me/saved-events`      | GET               | Private history / saved public and private concerts    |
-| `/me/recommendations`                 | GET               | Account-specific public recommendations                |
-| `/me/saved`                           | GET, PUT          | `{ type: event/artist/venue, id, saved: boolean }`     |
-| `/imports/preview`                    | POST              | Owner-only multipart `file`                            |
-| `/imports`                            | POST, GET         | Multipart `file` and JSON `mappings`; recent reports   |
-| `/notifications`                      | GET, PATCH        | Inbox; mark one `{ id }` or all `{}` as read           |
-| `/push-config`                        | GET               | Notification capability flags and public VAPID key     |
-| `/push-subscriptions`                 | GET, POST, DELETE | Current session's browser push                         |
-| `/email-verifications`                | POST              | Send opt-in confirmation `{ email }`                   |
-| `/email-verifications/confirm`        | POST              | Confirm `{ token }` while signed in                    |
-| `/me`                                 | PATCH, DELETE     | Email preference / password-confirmed account deletion |
-| `/me/export`                          | GET               | Private account-data download, no credential material  |
-| `/jobs`                               | GET, POST         | Admin-only worker status and `{ type: scrape }`        |
-| `/metrics`                            | POST, GET         | Opted-in anonymous metrics / admin aggregates          |
-| `/integrations/spotify/artists`       | GET               | Authenticated explicit artist search `?q=`             |
-| `/integrations/ticketmaster/searches` | POST              | Authenticated `{ q, city?, genre? }`                   |
+| Resource                              | Methods           | Access                                                                            |
+| ------------------------------------- | ----------------- | --------------------------------------------------------------------------------- |
+| `/health`                             | GET               | Public runtime capabilities and readiness                                         |
+| `/users`                              | POST              | Register `{ username, password }`, normal role only                               |
+| `/sessions`                           | POST              | Sign in `{ username, password }`                                                  |
+| `/sessions/current`                   | GET, DELETE       | Current account or null; revoke this session                                      |
+| `/events`                             | GET               | Public concerts only                                                              |
+| `/events/:id`                         | GET               | Public or owner-authorized detail                                                 |
+| `/events/:id/calendar`                | GET               | Owner-aware `.ics` download                                                       |
+| `/events/:id/similar`                 | GET               | Similar upcoming public concerts                                                  |
+| `/artists`, `/venues`, `/tours`       | GET               | Derived public directories                                                        |
+| `/sources`                            | GET               | Venue collection status and errors                                                |
+| `/me/events`, `/me/saved-events`      | GET               | Private history / saved public and private concerts                               |
+| `/me/recommendations`                 | GET               | Account-specific public recommendations                                           |
+| `/me/saved`                           | GET, PUT          | `{ type: event/artist/venue, id, saved: boolean }`                                |
+| `/imports/preview`                    | POST              | Owner-only multipart `file`                                                       |
+| `/imports`                            | POST, GET         | Multipart `file` and JSON `mappings`; recent reports                              |
+| `/notifications`                      | GET, PATCH        | Inbox; mark one `{ id }` or all `{}` as read                                      |
+| `/push-config`                        | GET               | Notification capability flags and public VAPID key                                |
+| `/push-subscriptions`                 | GET, POST, DELETE | Current session's browser push                                                    |
+| `/email-verifications`                | POST              | Send opt-in confirmation `{ email }`                                              |
+| `/email-verifications/confirm`        | POST              | Confirm `{ token }` while signed in                                               |
+| `/me`                                 | PATCH, DELETE     | Email preference / password-confirmed account deletion                            |
+| `/me/profile`                         | GET, PATCH        | Private display name, location, and bio; username and role cannot be changed here |
+| `/me/password`                        | PATCH             | Current-password verification, matching new passwords, and session rotation       |
+| `/me/export`                          | GET               | Private account-data download, no credential material                             |
+| `/jobs`                               | GET, POST         | Admin-only worker status and `{ type: scrape }`                                   |
+| `/metrics`                            | POST, GET         | Opted-in anonymous metrics / admin aggregates                                     |
+| `/integrations/spotify/artists`       | GET               | Authenticated explicit artist search `?q=`                                        |
+| `/integrations/ticketmaster/searches` | POST              | Authenticated `{ q, city?, genre? }`                                              |
 
 List filters: `artist`, `location`, `date=YYYY-MM-DD`, `genre`, and where applicable
 `past=true`, `saved=true`, or `view=trending`. The public event endpoint accepts
@@ -43,6 +45,19 @@ at most 30 comma-separated `ids` for guest shortlists and never resolves private
 Mutations require an `Origin` equal to `APP_ORIGIN`. JSON mutations require
 `application/json`; imports require multipart forms. Session cookies are
 HttpOnly and cannot be read by frontend code. CORS is same-origin only.
+
+The client uses canonical trailing-slash API URLs and confirms a persisted server
+session before treating sign-in as successful. The signed-in header shows the
+username, profile-settings link, and Log out without requiring a page reload.
+Blocked session cookies produce an explicit error instead of a false sign-in.
+
+Profile updates accept `display_name` (80 characters), `location` (120), and
+`bio` (500). These are account-private and never enter concert-source requests.
+Password changes accept `current_password`, `new_password`, and `confirm_password`;
+they require at least 12 characters for the new password, revoke existing
+sessions/subscriptions, and issue a new confirmed session for the current browser.
+Existing account IDs, password hashes, sessions, and concert records survive the
+profile schema migration.
 
 Default limits: 600 API requests/minute per trusted connection key,
 10 authentication attempts/15 minutes, 20 import requests/hour/account,

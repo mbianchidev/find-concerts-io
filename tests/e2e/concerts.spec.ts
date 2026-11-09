@@ -180,7 +180,10 @@ test('synthetic XLSX imports stay private, persist, and never leak to public pag
   const sitemap = await page.request.get('/sitemap.xml');
   expect(await sitemap.text()).not.toContain('private%3A');
   await page.goto('/account/');
-  await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+  await page
+    .getByRole('banner')
+    .getByRole('button', { name: 'Log out', exact: true })
+    .click();
   await expect(
     page.getByRole('heading', { name: 'Make room for good nights.' })
   ).toBeVisible();

@@ -76,10 +76,25 @@ export const eventSchema: z.ZodType<Event> = z.object({
 export const userSchema: z.ZodType<User> = z.object({
   id: z.string(),
   username: z.string(),
+  display_name: z.string().max(80).default(''),
+  location: z.string().max(120).default(''),
+  bio: z.string().max(500).default(''),
   email: z.string().optional(),
   email_notifications: z.boolean(),
   role: z.enum(['admin', 'user']),
 });
+
+export const profileUpdateSchema = z
+  .object({
+    display_name: z.string().trim().max(80).optional(),
+    location: z.string().trim().max(120).optional(),
+    bio: z.string().trim().max(500).optional(),
+  })
+  .strict()
+  .refine(
+    (value) => Object.keys(value).length > 0,
+    'Choose at least one profile field to update.'
+  );
 
 export const savedItemSchema: z.ZodType<SavedItem> = z.object({
   id: z.string(),

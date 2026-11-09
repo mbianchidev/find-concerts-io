@@ -28,6 +28,13 @@ export class ConcertStore {
       mkdirSync(dirname(resolve(path)), { recursive: true, mode: 0o700 });
     this.db = new DatabaseSync(path);
     if (path !== ':memory:') chmodSync(path, 0o600);
+    const version = this.db.prepare('PRAGMA user_version').get();
+    if (!version || Number(version.user_version) > 2) {
+      this.db.close();
+      throw new Error(
+        'The database schema is newer than this app. Use a matching app version; do not reset the database.'
+      );
+    }
     this.db.exec(`
       PRAGMA foreign_keys = ON;
       PRAGMA secure_delete = ON;
@@ -99,8 +106,22 @@ export class ConcertStore {
         id INTEGER PRIMARY KEY, name TEXT NOT NULL, value REAL NOT NULL, created_at INTEGER NOT NULL
       );
       CREATE INDEX IF NOT EXISTS metrics_retention ON metrics(created_at);
-      PRAGMA user_version = 1;
     `);
+    this.transaction(() => {
+      const columns = new Set(
+        this.db
+          .prepare('PRAGMA table_info(users)')
+          .all()
+          .map((row) => String(row.name))
+      );
+      for (const column of ['display_name', 'location', 'bio']) {
+        if (!columns.has(column))
+          this.db.exec(
+            `ALTER TABLE users ADD COLUMN ${column} TEXT NOT NULL DEFAULT ''`
+          );
+      }
+      this.db.exec('PRAGMA user_version = 2');
+    });
   }
 
   close(): void {
@@ -146,6 +167,9 @@ export class ConcertStore {
       return {
         id,
         username: username.toLowerCase(),
+        display_name: '',
+        location: '',
+        bio: '',
         role,
         email_notifications: false,
       };
@@ -155,13 +179,16 @@ export class ConcertStore {
   user(id: string): User | undefined {
     const row = this.db
       .prepare(
-        'SELECT id, username, role, email, email_verified, email_notifications FROM users WHERE id = ?'
+        'SELECT id, username, display_name, location, bio, role, email, email_verified, email_notifications FROM users WHERE id = ?'
       )
       .get(id);
     if (!row) return undefined;
     return {
       id: String(row.id),
       username: String(row.username),
+      display_name: String(row.display_name),
+      location: String(row.location),
+      bio: String(row.bio),
       role: row.role === 'admin' ? 'admin' : 'user',
       email:
         row.email_verified && typeof row.email === 'string'

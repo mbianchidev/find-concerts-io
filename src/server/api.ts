@@ -34,7 +34,7 @@ import {
   pushSubscriptionSchema,
   requestEmailVerification,
 } from './notifications';
-import { eventSchema } from '@/lib/schema';
+import { eventSchema, profileUpdateSchema } from '@/lib/schema';
 import { sourceStatuses } from './scraper';
 import { ConcertStore, getStore } from './store';
 import { spotifyClient, TicketmasterClient } from './providers';
@@ -491,6 +491,73 @@ async function route(request: Request, store: ConcertStore): Promise<Response> {
       .parse(await json(request));
     confirmEmail(store, user, input.token);
     return data(store.user(user.id));
+  }
+  if (path === 'me/profile' && method === 'GET')
+    return data(requireUser(request, store));
+  if (path === 'me/profile' && method === 'PATCH') {
+    const user = requireUser(request, store);
+    store.rateLimit(`profile:${user.id}`, 30, 15 * 60000);
+    const input = profileUpdateSchema.parse(await json(request));
+    store.db
+      .prepare(
+        'UPDATE users SET display_name = coalesce(?, display_name), location = coalesce(?, location), bio = coalesce(?, bio) WHERE id = ?'
+      )
+      .run(
+        input.display_name ?? null,
+        input.location ?? null,
+        input.bio ?? null,
+        user.id
+      );
+    return data(store.user(user.id));
+  }
+  if (path === 'me/password' && method === 'PATCH') {
+    const user = requireUser(request, store);
+    store.rateLimit(`password:${user.id}`, 5, 15 * 60000);
+    const input = z
+      .object({
+        current_password: z.string().min(1).max(1024),
+        new_password: credentialsSchema.shape.password,
+        confirm_password: z.string().min(1).max(1024),
+      })
+      .strict()
+      .refine((value) => value.new_password === value.confirm_password, {
+        path: ['confirm_password'],
+        message: 'New passwords must match.',
+      })
+      .parse(await json(request));
+    const credentials = store.credentials(user.username);
+    if (
+      !credentials ||
+      !(await verifyPassword(input.current_password, credentials.password_hash))
+    )
+      throw new AppError(
+        401,
+        'INVALID_CREDENTIALS',
+        'The current password is incorrect.'
+      );
+    if (input.current_password === input.new_password)
+      throw new AppError(
+        422,
+        'PASSWORD_UNCHANGED',
+        'Choose a different new password.'
+      );
+    const nextHash = await hashPassword(input.new_password);
+    const cookie = store.transaction(() => {
+      const updated = store.db
+        .prepare(
+          'UPDATE users SET password_hash = ? WHERE id = ? AND password_hash = ?'
+        )
+        .run(nextHash, user.id, credentials.password_hash);
+      if (!updated.changes)
+        throw new AppError(
+          409,
+          'PASSWORD_CHANGED',
+          'The password changed in another request. Sign in again before retrying.'
+        );
+      store.db.prepare('DELETE FROM sessions WHERE user_id = ?').run(user.id);
+      return sessionCookie(store, user.id);
+    });
+    return data({ changed: true }, 200, { 'set-cookie': cookie });
   }
   if (path === 'me' && method === 'PATCH') {
     const user = requireUser(request, store);

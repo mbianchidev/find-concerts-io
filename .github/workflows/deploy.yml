@@ -45,8 +45,8 @@ jobs:
         run: npm run lint && npm run typecheck && npm test && npm run format:check
       - name: Build the hosted app
         run: npm run build
-      - name: Install Chromium
-        run: npm exec playwright -- install --with-deps chromium
+      - name: Install Chromium and WebKit
+        run: npm exec playwright -- install --with-deps chromium webkit
       - name: Browser, accessibility, and bounded load tests
         run: |
           workers=$(node -p "Math.min(2, require('node:os').availableParallelism())")

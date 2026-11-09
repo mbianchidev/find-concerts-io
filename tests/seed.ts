@@ -1,8 +1,16 @@
 import { resolve } from 'node:path';
+import { parseArgs } from 'node:util';
+import { z } from 'zod';
 import { ConcertStore } from '../src/server/store';
 import { concert } from './fixtures';
 
-const store = new ConcertStore(resolve('.data/e2e.sqlite'));
+const { values } = parseArgs({
+  options: { browser: { type: 'string', default: 'chromium' } },
+});
+const browser = z.enum(['chromium', 'webkit']).parse(values.browser);
+const store = new ConcertStore(
+  resolve(browser === 'webkit' ? '.data/e2e-webkit.sqlite' : '.data/e2e.sqlite')
+);
 try {
   store.db.exec(
     'DELETE FROM users; DELETE FROM events; DELETE FROM jobs; DELETE FROM rate_limits; DELETE FROM metrics; DELETE FROM cache;'

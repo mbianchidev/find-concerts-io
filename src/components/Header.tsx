@@ -19,7 +19,8 @@ export default function Header() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
-  const { user, saves } = useApp();
+  const { user, saves, signOut, authPending, authStatus } = useApp();
+  const [logoutError, setLogoutError] = useState<string | null>(null);
 
   return (
     <header
@@ -34,7 +35,7 @@ export default function Header() {
       <a className="skip-link" href="#main">
         Skip to content
       </a>
-      <div className="container header-inner">
+      <div className="container header-inner" data-authenticated={!!user}>
         <Link
           href="/"
           className="brand"
@@ -85,26 +86,71 @@ export default function Header() {
           ))}
         </nav>
         <div className="header-actions">
-          <Link
-            className="account-link"
-            href="/account"
-            aria-label={user ? 'Account settings' : 'Sign in'}
-            onClick={() => setOpen(false)}
-          >
-            <Icon name="user" />
-            <span>{user ? user.username : 'Sign in'}</span>
-          </Link>
+          {authStatus === 'loading' ? (
+            <span className="account-pending" role="status">
+              Checking account...
+            </span>
+          ) : (
+            <Link
+              className="account-link"
+              href={user ? '/account#profile' : '/account'}
+              aria-label={
+                user
+                  ? `Profile settings for ${user.username}`
+                  : authStatus === 'error'
+                    ? 'Account'
+                    : 'Sign in'
+              }
+              onClick={() => setOpen(false)}
+              title={user?.username}
+            >
+              <Icon name="user" />
+              <span>
+                {user
+                  ? user.username
+                  : authStatus === 'error'
+                    ? 'Account'
+                    : 'Sign in'}
+              </span>
+            </Link>
+          )}
+          {user && (
+            <button
+              className="logout-button"
+              disabled={authPending}
+              onClick={() => {
+                setLogoutError(null);
+                void signOut().catch((error: unknown) =>
+                  setLogoutError(
+                    error instanceof Error
+                      ? error.message
+                      : 'Log out failed. Try again.'
+                  )
+                );
+              }}
+            >
+              {authPending ? 'Working...' : 'Log out'}
+            </button>
+          )}
           <button
             ref={trigger}
             className="icon-button mobile-toggle"
             aria-label={open ? 'Close navigation' : 'Open navigation'}
             aria-expanded={open}
             aria-controls="main-navigation"
-            onClick={() => setOpen(!open)}
+            onClick={() => {
+              setOpen(!open);
+              trigger.current?.focus();
+            }}
           >
             <Icon name={open ? 'close' : 'menu'} />
           </button>
         </div>
+        {logoutError && (
+          <p className="container header-error" role="alert">
+            {logoutError}
+          </p>
+        )}
       </div>
     </header>
   );

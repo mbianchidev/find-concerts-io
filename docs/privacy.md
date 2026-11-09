@@ -12,6 +12,12 @@ structured data, sitemaps, test fixtures, builds, or provider searches.
 No private workbook file is retained after upload. Server-console tools must
 only process owner-provided paths and must not publish the source file.
 
+Display name, location, and bio are optional account-private profile fields.
+They are included only in the owner's session/profile/export responses and
+removed on account deletion, never sent to venue or music-provider searches.
+Password changes verify the existing password, revoke old sessions, and rotate
+the current browser's session without changing concert data.
+
 The essential session cookie expires after 30 days and is revoked on sign-out.
 Guest saves and opt-in preferences stay in browser storage. The offline worker
 stores only public static assets and a generic offline page, never API responses

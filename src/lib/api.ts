@@ -17,7 +17,12 @@ export class ApiError extends Error {
   }
 }
 
-export const apiUrl = (path: string) => `${BASE_PATH}/api/v1${path}`;
+export function apiUrl(path: string): string {
+  const index = path.indexOf('?');
+  const resource = index < 0 ? path : path.slice(0, index);
+  const query = index < 0 ? '' : path.slice(index);
+  return `${BASE_PATH}/api/v1${resource.endsWith('/') ? resource : `${resource}/`}${query}`;
+}
 
 async function request(path: string, options?: RequestInit): Promise<unknown> {
   let response;

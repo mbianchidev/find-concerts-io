@@ -25,11 +25,12 @@ export default function PrivacyPage() {
       <div className="panel">
         <h2>Accounts and private concerts</h2>
         <p>
-          Accounts store a username and salted scrypt password hash. Saved
-          shows, followed artists and venues, private concert imports, and
-          in-app notifications are linked to your account. Email is optional and
-          is enabled for notifications only after ownership is confirmed. No
-          payment information or social-login data is collected.
+          Accounts store a username, salted scrypt password hash, and optional
+          private display name, location, and bio. Saved shows, followed artists
+          and venues, private concert imports, and in-app notifications are
+          linked to your account. Email is optional and is enabled for
+          notifications only after ownership is confirmed. No payment
+          information or social-login data is collected.
         </p>
         <h2 style={{ marginTop: 25 }}>Cookies and browser storage</h2>
         <p>

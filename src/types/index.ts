@@ -89,6 +89,9 @@ export interface SavedItem {
 export interface User {
   id: string;
   username: string;
+  display_name: string;
+  location: string;
+  bio: string;
   email?: string;
   email_notifications: boolean;
   role: 'admin' | 'user';

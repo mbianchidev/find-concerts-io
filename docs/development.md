@@ -47,15 +47,21 @@ npm test
 npm run format:check
 npm audit --audit-level=low
 npm run build
-npm exec playwright -- install chromium
+npm exec playwright -- install chromium webkit
 npm run test:e2e
 ```
 
 Unit and API integration tests use synthetic fixtures and mocked providers.
-Browser tests start a separate production server on **127.0.0.1:3100** with the
-reserved `.data/e2e.sqlite` database. `npm run test:seed` resets only that test
-database, never the normal `.data/concerts.sqlite` file. Do not put real records
-in the test database.
+Browser tests start separate production servers on **localhost:3100** for
+Chromium and **localhost:3101** for Safari/WebKit authentication/profile checks.
+They use reserved `.data/e2e.sqlite` and `.data/e2e-webkit.sqlite` databases so
+browser sessions and rate limits cannot interfere. `npm run test:seed` and its
+validated `--browser chromium|webkit` selector reset only those test databases,
+never the normal `.data/concerts.sqlite` file. Do not put real records in them.
+
+Authentication coverage checks immediate username/logout changes without a hard
+reload, real cookie persistence, blocked-cookie failures, profile edits,
+password changes, old-password rejection, session revocation, and mobile layouts.
 
 The browser suite includes keyboard checks, an axe WCAG audit, and 60 local API
 requests with concurrency 5 and a required p95 below 1,000 ms. `npm run test:load`

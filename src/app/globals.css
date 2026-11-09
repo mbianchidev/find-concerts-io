@@ -240,6 +240,53 @@ label {
 .account-link span {
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.logout-button {
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.logout-button:hover {
+  border-color: var(--blue);
+  color: var(--blue);
+}
+.account-pending {
+  color: var(--muted);
+  font-size: 11px;
+}
+.header-error {
+  color: #843a23;
+  font-size: 12px;
+  padding-block: 10px;
+}
+.profile-identity {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.profile-identity h2 {
+  margin-bottom: 5px;
+}
+.profile-avatar {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  background: var(--blue);
+  color: white;
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 700;
 }
 .icon-button {
   min-width: 44px;
@@ -1074,6 +1121,11 @@ label {
 .form-field input {
   margin-top: 7px;
 }
+.form-field textarea {
+  margin-top: 7px;
+  border-radius: 6px;
+  resize: vertical;
+}
 .form-stack label input,
 .form-stack label select {
   margin-top: 7px;
@@ -1351,11 +1403,9 @@ th {
   .main-nav > a {
     font-size: 12px;
   }
-  .account-link span {
-    display: none;
-  }
   .account-link {
     padding: 10px;
+    max-width: 145px;
   }
   .hero {
     gap: 35px;
@@ -1409,9 +1459,6 @@ th {
   }
   .mobile-toggle {
     display: grid;
-  }
-  .account-link span {
-    display: inline;
   }
   .main-nav {
     display: none;
@@ -1553,10 +1600,6 @@ th {
     font-size: 7px;
     letter-spacing: 1.2px;
   }
-  .account-link span {
-    display: none;
-  }
-  .account-link,
   .icon-button {
     border: 0;
     background: transparent;
@@ -1566,6 +1609,22 @@ th {
   }
   .header-actions {
     gap: 4px;
+  }
+  .account-link {
+    width: auto;
+    min-width: 0;
+    max-width: 210px;
+    padding: 8px;
+  }
+  .header-inner[data-authenticated='true'] {
+    padding-block: 12px;
+    row-gap: 6px;
+  }
+  .header-inner[data-authenticated='true'] .header-actions {
+    width: 100%;
+    order: 2;
+    justify-content: space-between;
+    gap: 10px;
   }
   .hero {
     grid-template-columns: 1fr;

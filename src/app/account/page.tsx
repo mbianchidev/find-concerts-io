@@ -7,6 +7,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import { useApp } from '@/components/AppProvider';
 import Icon from '@/components/Icon';
+import ProfileSettings from '@/components/ProfileSettings';
 import { AnalyticsSetting } from '@/components/Telemetry';
 import { ErrorState, PageIntro } from '@/components/Ui';
 import { apiData, apiUrl, useApiData } from '@/lib/api';
@@ -15,7 +16,7 @@ import { notificationConfigSchema, userSchema } from '@/lib/schema';
 const enabledSchema = z.object({ enabled: z.boolean() });
 
 function Account() {
-  const { user, signIn, signOut, refreshSession } = useApp();
+  const { user, signIn, signOut, refreshSession, authStatus } = useApp();
   const router = useRouter();
   const params = useSearchParams();
   const client = useQueryClient();
@@ -129,7 +130,13 @@ function Account() {
     <main className="container" id="main" tabIndex={-1}>
       <PageIntro
         eyebrow={user ? 'YOUR ACCOUNT / YOUR CHOICE' : 'YOUR SCENE, WITH YOU'}
-        title={user ? `Hey, ${user.username}.` : 'Make room for good nights.'}
+        title={
+          user
+            ? `Hey, ${user.display_name || user.username}.`
+            : authStatus === 'loading'
+              ? 'Your account.'
+              : 'Make room for good nights.'
+        }
       >
         <p>
           {user
@@ -137,7 +144,11 @@ function Account() {
             : 'Browse without an account. Sign in to keep your saved shows, follows, and private concert history across devices.'}
         </p>
       </PageIntro>
-      {!user ? (
+      {authStatus === 'loading' ? (
+        <section className="panel" role="status">
+          <p>Checking your account...</p>
+        </section>
+      ) : !user ? (
         <div className="account-grid">
           <section className="panel">
             <div
@@ -223,6 +234,7 @@ function Account() {
       ) : (
         <div className="account-grid">
           <div>
+            <ProfileSettings key={user.id} user={user} />
             {verificationToken && (
               <section className="panel">
                 <h2>Confirm your email.</h2>
@@ -399,7 +411,7 @@ function Account() {
                     .finally(() => setBusy(false));
                 }}
               >
-                Sign out
+                Log out
               </button>
               {user.role === 'admin' && (
                 <Link className="show-link" href="/sources">
@@ -471,7 +483,12 @@ export default function AccountPage() {
         </main>
       }
     >
-      <Account />
+      <AccountSession />
     </Suspense>
   );
+}
+
+function AccountSession() {
+  const { user } = useApp();
+  return <Account key={user?.id || 'guest'} />;
 }

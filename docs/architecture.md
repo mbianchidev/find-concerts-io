@@ -22,6 +22,14 @@ are stored. Cookies are HttpOnly, SameSite=Lax, Secure on HTTPS, and expire afte
 access is not enabled. Authentication, general API, import, provider, email,
 and collector limits are enforced server-side.
 
+Authentication transitions preserve the active session-query observer instead
+of clearing it with the rest of the cache. Sign-in confirms the issued cookie
+against the server before publishing authenticated state. User-scoped caches
+are removed on account switches/logout without losing the session subscription.
+Private profile fields and password changes live under account settings.
+The profile migration adds columns transactionally without resetting accounts,
+credentials, sessions, or concert data.
+
 Public concert rows have no owner. Imported rows have an account owner and a
 separate ID namespace. Public listings, public artist/venue directories,
 trending, sitemaps, and structured data never include imports. Every private
