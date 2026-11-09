@@ -33,8 +33,10 @@ imports, and notifications. The app does not encrypt the database at rest.
 ## Discovery
 
 Filtering searches concert titles, support acts, venues, cities, countries,
-local calendar dates, and genres. Recommendations use actual saved genres,
-followed artists, and followed venues, and exclude saved, canceled, postponed,
+local calendar dates, and genres. Upcoming-day comparisons normalize explicit
+timestamp offsets to UTC, while date filters retain the venue-local calendar date.
+Recommendations use actual saved genres, followed artists, and followed venues,
+and exclude saved, canceled, postponed,
 or past events. Similar shows use the selected concert as their seed.
 Trending ranks actual account saves in the chosen area; absent popularity does
 not become an invented count. Tours group multiple collected dates by artist

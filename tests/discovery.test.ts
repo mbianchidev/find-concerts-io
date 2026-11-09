@@ -4,10 +4,20 @@ import {
   artistKey,
   collectArtists,
   filterEvents,
+  isUpcoming,
   recommendEvents,
   trendingEvents,
 } from '../src/lib/concerts';
 import { concert } from './fixtures';
+
+test('upcoming comparisons honor UTC offsets while date filters stay venue-local', () => {
+  const west = concert({ datetime: '2027-06-01T23:00:00-04:00' });
+  const east = concert({ datetime: '2027-06-02T00:00:00+09:00' });
+  assert.equal(isUpcoming(west, '2027-06-02'), true);
+  assert.equal(isUpcoming(east, '2027-06-02'), false);
+  assert.equal(filterEvents([west], { date: '2027-06-01' }).length, 1);
+  assert.equal(filterEvents([west], { date: '2027-06-02' }).length, 0);
+});
 
 test('search includes support acts, venues, and case-insensitive genres', () => {
   const events = [

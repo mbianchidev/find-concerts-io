@@ -26,7 +26,8 @@ export function isUpcoming(
     event.status !== 'cancelled' &&
     event.status !== 'postponed' &&
     !!event.datetime &&
-    (event.end_datetime || event.datetime).slice(0, 10) >= today
+    new Date(event.end_datetime || event.datetime).toISOString().slice(0, 10) >=
+      today
   );
 }
 
