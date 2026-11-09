@@ -1,0 +1,76 @@
+# API and integrations
+
+Base path: `/api/v1`. All responses are JSON except calendar and account-export
+downloads. Single resources use `{ data }`; lists use
+`{ data, meta: { total, page, limit, has_next } }`. Pagination starts at 1 and
+accepts limits up to 100. Errors use
+`{ error: { code, message, request_id, details? } }`. Responses carry a matching
+`X-Request-ID` and are never publicly cached by the browser.
+
+| Resource                              | Methods           | Access                                                 |
+| ------------------------------------- | ----------------- | ------------------------------------------------------ |
+| `/health`                             | GET               | Public runtime capabilities and readiness              |
+| `/users`                              | POST              | Register `{ username, password }`, normal role only    |
+| `/sessions`                           | POST              | Sign in `{ username, password }`                       |
+| `/sessions/current`                   | GET, DELETE       | Current account or null; revoke this session           |
+| `/events`                             | GET               | Public concerts only                                   |
+| `/events/:id`                         | GET               | Public or owner-authorized detail                      |
+| `/events/:id/calendar`                | GET               | Owner-aware `.ics` download                            |
+| `/events/:id/similar`                 | GET               | Similar upcoming public concerts                       |
+| `/artists`, `/venues`, `/tours`       | GET               | Derived public directories                             |
+| `/sources`                            | GET               | Venue collection status and errors                     |
+| `/me/events`, `/me/saved-events`      | GET               | Private history / saved public and private concerts    |
+| `/me/recommendations`                 | GET               | Account-specific public recommendations                |
+| `/me/saved`                           | GET, PUT          | `{ type: event/artist/venue, id, saved: boolean }`     |
+| `/imports/preview`                    | POST              | Owner-only multipart `file`                            |
+| `/imports`                            | POST, GET         | Multipart `file` and JSON `mappings`; recent reports   |
+| `/notifications`                      | GET, PATCH        | Inbox; mark one `{ id }` or all `{}` as read           |
+| `/push-config`                        | GET               | Notification capability flags and public VAPID key     |
+| `/push-subscriptions`                 | GET, POST, DELETE | Current session's browser push                         |
+| `/email-verifications`                | POST              | Send opt-in confirmation `{ email }`                   |
+| `/email-verifications/confirm`        | POST              | Confirm `{ token }` while signed in                    |
+| `/me`                                 | PATCH, DELETE     | Email preference / password-confirmed account deletion |
+| `/me/export`                          | GET               | Private account-data download, no credential material  |
+| `/jobs`                               | GET, POST         | Admin-only worker status and `{ type: scrape }`        |
+| `/metrics`                            | POST, GET         | Opted-in anonymous metrics / admin aggregates          |
+| `/integrations/spotify/artists`       | GET               | Authenticated explicit artist search `?q=`             |
+| `/integrations/ticketmaster/searches` | POST              | Authenticated `{ q, city?, genre? }`                   |
+
+List filters: `artist`, `location`, `date=YYYY-MM-DD`, `genre`, and where applicable
+`past=true`, `saved=true`, or `view=trending`. The public event endpoint accepts
+at most 30 comma-separated `ids` for guest shortlists and never resolves private IDs.
+
+Mutations require an `Origin` equal to `APP_ORIGIN`. JSON mutations require
+`application/json`; imports require multipart forms. Session cookies are
+HttpOnly and cannot be read by frontend code. CORS is same-origin only.
+
+Default limits: 600 API requests/minute per trusted connection key,
+10 authentication attempts/15 minutes, 20 import requests/hour/account,
+30 provider searches/15 minutes/account, 3 email confirmations/hour/account,
+and one queued collection/15 minutes. A 429 includes `Retry-After`.
+Without a trusted proxy, the anonymous connection bucket is shared, rather than
+trusting spoofable forwarding headers.
+
+## Optional configuration
+
+Spotify requires `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET`; server-side
+client credentials are cached until token expiry. Search results contain artist
+profiles, genres, and previews only when the provider supplies one.
+Ticketmaster requires `TICKETMASTER_API_KEY`. Explicit searches normalize supported
+public events, persist them to the catalogue, and return every skipped-record
+warning. Automated tests mock both providers with fictional data; production
+never substitutes fake results when credentials or APIs are unavailable.
+
+Email requires `SMTP_HOST`, `SMTP_FROM`, and optionally `SMTP_PORT`,
+`SMTP_USER`, and `SMTP_PASSWORD`. Authentication values must be paired.
+Addresses must be confirmed before notifications are enabled.
+
+Push requires `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT`.
+Generate keys privately with `npm exec web-push -- generate-vapid-keys`.
+Only the public key is exposed to the browser. Push endpoints are limited to
+supported browser services; sign-out/expiry removes the session's subscription
+from delivery. A browser permission prompt appears only after explicit action.
+
+`SENTRY_DSN` optionally enables sanitized error reporting. Core service operation,
+private imports, source collection, recommendations, calendars, and the in-app
+inbox do not depend on any of these external provider credentials.

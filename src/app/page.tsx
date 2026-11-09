@@ -1,139 +1,274 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import Header from '@/components/Header';
-import SearchBar from '@/components/SearchBar';
+import { Suspense } from 'react';
+import Image from 'next/image';
+import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { z } from 'zod';
+import { useApp } from '@/components/AppProvider';
 import EventList from '@/components/EventList';
-import { Event, SearchFilters } from '@/types';
-import { mockEvents, filterEvents } from '@/data/mockData';
+import GenreFilters from '@/components/GenreFilters';
+import Icon from '@/components/Icon';
+import SearchBar from '@/components/SearchBar';
+import { AccountGate, ErrorState, LoadingGrid, Pager } from '@/components/Ui';
+import { useApiData, useApiPage } from '@/lib/api';
+import { eventSchema, sourceStatusSchema } from '@/lib/schema';
+import { formatDate } from '@/lib/utils';
 
-export default function HomePage() {
-  const [events, setEvents] = useState<Event[]>(mockEvents);
-  const [loading, setLoading] = useState(false);
-  const [currentFilters, setCurrentFilters] = useState<SearchFilters>({});
+const sourcesSchema = z.array(sourceStatusSchema);
 
-  const handleSearch = async (filters: SearchFilters) => {
-    setLoading(true);
-    setCurrentFilters(filters);
-    
-    // Simulate API call delay
-    setTimeout(() => {
-      const filteredEvents = filterEvents(mockEvents, filters);
-      setEvents(filteredEvents);
-      setLoading(false);
-    }, 500);
+function Discovery() {
+  const params = useSearchParams();
+  const router = useRouter();
+  const { user, ready } = useApp();
+  const view = params.get('view') || 'all';
+  const genre = params.get('genre') || undefined;
+  const filters = {
+    artist: params.get('artist') || undefined,
+    location: params.get('location') || undefined,
+    date: params.get('date') || undefined,
+    genre,
+  };
+  const query = new URLSearchParams({
+    page: params.get('page') || '1',
+    limit: '12',
+  });
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value) query.set(key, value);
+  });
+  if (view === 'trending') query.set('view', 'trending');
+  const endpoint = view === 'for-you' ? '/me/recommendations' : '/events';
+  const results = useApiPage(
+    `${endpoint}?${query}`,
+    eventSchema,
+    view === 'for-you' ? user?.id || 'signed-out' : 'public',
+    view !== 'for-you' || (!!user && ready)
+  );
+  const sources = useApiData('/sources', sourcesSchema);
+
+  const update = (values: Record<string, string | undefined>) => {
+    const next = new URLSearchParams(params);
+    next.delete('page');
+    Object.entries(values).forEach(([key, value]) => {
+      if (value) next.set(key, value);
+      else next.delete(key);
+    });
+    router.replace(`/${next.size ? `?${next}` : ''}#shows`, { scroll: false });
   };
 
   return (
-    <div className="min-h-screen bg-void-black">
-      <Header />
-      
-      <main>
-        {/* Epic Hero Section */}
-        <div className="relative overflow-hidden">
-          {/* Metallic Gradient Background */}
-          <div className="absolute inset-0 bg-linear-to-br from-metal-gunmetal/15 via-metal-charcoal/12 to-metal-chrome/10 opacity-70"></div>
-          
-          {/* Geometric Grid Pattern */}
-          <div className="absolute inset-0 grid-pattern opacity-30"></div>
-          
-          {/* Angular Floating Elements */}
-          <div className="absolute top-20 left-10 w-32 h-32 bg-metal-steel/8 blur-3xl animate-precision-float clip-hexagon"></div>
-          <div className="absolute bottom-20 right-10 w-40 h-40 bg-metal-charcoal/10 blur-3xl animate-precision-float-slow clip-angle-dual"></div>
-          <div className="absolute top-40 right-20 w-24 h-24 bg-accent-crimson/8 blur-3xl animate-precision-float delay-300"></div>
-          
-          {/* Content */}
-          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 md:py-32">
-            <div className="text-center">
-              {/* Headline */}
-              <h1 className="font-display font-black text-5xl sm:text-6xl md:text-7xl lg:text-8xl mb-6 animate-mechanical-slide">
-                <span className="block metal-text-crimson animate-pulse-sheen">
-                  DISCOVER
-                </span>
-                <span className="block mt-2">
-                  <span className="metal-text-steel">LIVE</span>
-                  <span className="text-white mx-4">•</span>
-                  <span className="metal-text-cobalt">MUSIC</span>
-                </span>
-              </h1>
-              
-              {/* Subheadline */}
-              <p className="text-xl md:text-2xl lg:text-3xl font-body font-medium text-white/80 mb-8 max-w-4xl mx-auto animate-mechanical-slide delay-200">
-                Join the <span className="metal-text-orange font-bold">ultimate social network</span> for music lovers.
-                <span className="block mt-2">Find concerts, follow artists, connect with the scene.</span>
-              </p>
-              
-              {/* Stats Bar */}
-              <div className="flex flex-wrap justify-center gap-8 md:gap-12 mt-12 animate-mechanical-slide delay-400">
-                <div className="text-center">
-                  <div className="font-display text-3xl md:text-4xl font-bold metal-text-crimson">10K+</div>
-                  <div className="text-sm text-white/60 uppercase tracking-wider mt-1 font-bold">Events</div>
-                </div>
-                <div className="text-center">
-                  <div className="font-display text-3xl md:text-4xl font-bold metal-text-steel">500+</div>
-                  <div className="text-sm text-white/60 uppercase tracking-wider mt-1 font-bold">Artists</div>
-                </div>
-                <div className="text-center">
-                  <div className="font-display text-3xl md:text-4xl font-bold metal-text-cobalt">100+</div>
-                  <div className="text-sm text-white/60 uppercase tracking-wider mt-1 font-bold">Venues</div>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          {/* Bottom gradient fade */}
-          <div className="absolute bottom-0 left-0 right-0 h-32 bg-linear-to-t from-void-black to-transparent"></div>
-        </div>
-
-        {/* Search Section */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-16 relative z-10">
-          <SearchBar onSearch={handleSearch} />
-        </div>
-
-        {/* Results Section */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-          <EventList events={events} loading={loading} />
-        </div>
-      </main>
-
-      {/* Footer */}
-      <footer className="relative border-t border-white/10 mt-20">
-        {/* Background decoration */}
-        <div className="absolute inset-0 bg-linear-to-t from-obsidian to-transparent opacity-70"></div>
-        
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-          <div className="text-center">
-            {/* Logo */}
-            <h3 className="font-display font-black text-3xl mb-3">
-              <span className="metal-text-crimson">FIND</span>
-              <span className="text-metal-steel ml-2">CONCERTS</span>
-            </h3>
-            
-            {/* Tagline */}
-            <p className="text-white/60 text-base mb-6 font-body font-medium">
-              The ultimate social network for live music
+    <main id="main" tabIndex={-1}>
+      <div className="container">
+        <section className="hero" aria-labelledby="discovery-title">
+          <div>
+            <p className="eyebrow">
+              <span className="status-dot" />
+              LIVE MUSIC. REAL PLANS.
             </p>
-            
-            {/* Social Icons Placeholder */}
-            <div className="flex justify-center gap-6 mb-8">
-              <div className="w-10 h-10 glass metal-border-crimson flex items-center justify-center hover:bg-accent-crimson/10 transition-all cursor-pointer clip-angle-dual">
-                <span className="text-accent-crimson text-xl">♪</span>
-              </div>
-              <div className="w-10 h-10 glass metal-border-steel flex items-center justify-center hover:bg-metal-steel/10 transition-all cursor-pointer clip-angle-dual">
-                <span className="text-metal-steel text-xl">♫</span>
-              </div>
-              <div className="w-10 h-10 glass metal-border-cobalt flex items-center justify-center hover:bg-accent-cobalt/10 transition-all cursor-pointer clip-angle-dual">
-                <span className="text-accent-cobalt text-xl">♬</span>
-              </div>
-            </div>
-            
-            {/* Copyright */}
-            <div className="text-xs text-white/40 font-display tracking-wider font-bold">
-              © 2024 FIND CONCERTS • ALL RIGHTS RESERVED
+            <h1 id="discovery-title">
+              Find your
+              <br />
+              next <span>front row.</span>
+            </h1>
+            <p className="hero-copy">
+              The heavy riffs. The small rooms. The nights you talk about for
+              years. Find a show worth getting out for.
+            </p>
+            <div className="hero-links">
+              <a className="show-link" href="#shows">
+                Explore the listings <Icon name="arrow" />
+              </a>
+              <span className="hero-note">Straight from the venues</span>
             </div>
           </div>
+          <div className="gig-pass" aria-hidden="true">
+            <div className="pass-picture">
+              <Image
+                src="/crowd.jpg"
+                alt=""
+                fill
+                sizes="(max-width: 520px) 90vw, 45vw"
+                priority
+              />
+              <div className="pass-caption">
+                <small>LESS SCROLLING. MORE SHOWS.</small>SEE YOU
+                <br />
+                IN THE PIT.
+              </div>
+            </div>
+            <div className="pass-spine">
+              <span>METAL / HARDCORE / ROCK / PUNK</span>
+            </div>
+            <span className="pass-sticker">YOUR NEXT NIGHT STARTS HERE</span>
+          </div>
+        </section>
+        <SearchBar
+          key={[filters.artist, filters.location, filters.date].join('|')}
+          initial={filters}
+          onSearch={(next) =>
+            update(
+              Object.keys(next).length
+                ? {
+                    artist: next.artist,
+                    location: next.location,
+                    date: next.date,
+                  }
+                : {
+                    artist: undefined,
+                    location: undefined,
+                    date: undefined,
+                    genre: undefined,
+                  }
+            )
+          }
+        />
+        <GenreFilters
+          value={genre}
+          onChange={(next) => update({ genre: next })}
+        />
+        <section
+          className="listing-section"
+          id="shows"
+          aria-labelledby="shows-title"
+        >
+          <div className="section-heading">
+            <div>
+              <h2 id="shows-title">
+                {view === 'for-you'
+                  ? 'A little more your kind of loud.'
+                  : view === 'trending'
+                    ? filters.location
+                      ? `Trending around ${filters.location}.`
+                      : "On the scene's radar."
+                    : 'Good nights ahead.'}
+              </h2>
+              <p className="result-count" role="status">
+                {results.data
+                  ? `${results.data.meta.total} ${results.data.meta.total === 1 ? 'show' : 'shows'}${view === 'trending' ? ' ranked by real account saves' : ' from original venue listings'}`
+                  : view === 'for-you' && !user
+                    ? 'Personal recommendations, without the noise.'
+                    : 'Finding the next good night...'}
+              </p>
+            </div>
+            <div
+              className="filter-segments"
+              role="group"
+              aria-label="Concert view"
+            >
+              <button
+                aria-pressed={view === 'all'}
+                onClick={() => update({ view: undefined })}
+              >
+                All shows
+              </button>
+              <button
+                aria-pressed={view === 'for-you'}
+                onClick={() => update({ view: 'for-you' })}
+              >
+                <Icon name="bookmark" />
+                For you
+              </button>
+              <button
+                aria-pressed={view === 'trending'}
+                onClick={() => update({ view: 'trending' })}
+              >
+                <Icon name="bolt" />
+                Trending
+              </button>
+            </div>
+          </div>
+          {view === 'for-you' && !user ? (
+            <AccountGate>
+              Save a few shows or follow an artist, and get recommendations
+              based on your scene.
+            </AccountGate>
+          ) : (
+            <>
+              <ErrorState
+                error={results.error}
+                retry={() => void results.refetch()}
+              />
+              <EventList
+                events={results.data?.data || []}
+                loading={results.isPending}
+                emptyMessage={
+                  view === 'for-you'
+                    ? 'Save a show or follow an artist to help us find your next one.'
+                    : view === 'trending'
+                      ? 'No upcoming shows have account saves in this area yet. Try All shows to browse every listing.'
+                      : undefined
+                }
+              />
+              {results.data && (
+                <Pager
+                  page={results.data.meta.page}
+                  total={results.data.meta.total}
+                  hasNext={results.data.meta.has_next}
+                  onChange={(page) => update({ page: String(page) })}
+                />
+              )}
+            </>
+          )}
+        </section>
+        {!user && (
+          <section className="scene-banner">
+            <div>
+              <h2>Your scene. All in one place.</h2>
+              <p>
+                Save the shows. Follow the bands. Bring your concert history
+                along.
+              </p>
+            </div>
+            <Link className="button" href="/account">
+              Make it yours <Icon name="arrow" />
+            </Link>
+          </section>
+        )}
+        <div className="source-strip">
+          <span>ORIGINAL LISTINGS. ALWAYS CHECK WITH THE VENUE.</span>
+          {sources.data?.map((source) => (
+            <a
+              key={source.id}
+              href={source.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={
+                source.error ||
+                (source.last_run
+                  ? `Collected ${formatDate(source.last_run)}`
+                  : 'Not collected yet')
+              }
+            >
+              <span className="status-dot" />
+              {source.name}
+              <span className={source.error ? 'source-error' : ''}>
+                {source.event_count} shows
+              </span>
+            </a>
+          ))}
+          <Link href="/sources">
+            Source status <Icon name="arrow" width="13" height="13" />
+          </Link>
         </div>
-      </footer>
-    </div>
+        <ErrorState
+          error={sources.error}
+          retry={() => void sources.refetch()}
+        />
+      </div>
+    </main>
+  );
+}
+
+export default function HomePage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="container" id="main">
+          <LoadingGrid />
+        </main>
+      }
+    >
+      <Discovery />
+    </Suspense>
   );
 }

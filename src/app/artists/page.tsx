@@ -1,153 +1,18 @@
 'use client';
 
-import { useState } from 'react';
-import Header from '@/components/Header';
+import DirectoryPage from '@/components/DirectoryPage';
 import ArtistList from '@/components/ArtistList';
-import { Artist } from '@/types';
-import { mockArtists, filterArtists, getUniqueGenres } from '@/data/mockData';
+import { artistSchema } from '@/lib/schema';
 
 export default function ArtistsPage() {
-  const [artists, setArtists] = useState<Artist[]>(mockArtists);
-  const [loading, setLoading] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedGenre, setSelectedGenre] = useState('all');
-  const genres = getUniqueGenres();
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    
-    // Simulate API call delay
-    setTimeout(() => {
-      const filtered = filterArtists(mockArtists, { 
-        name: searchQuery,
-        genre: selectedGenre 
-      });
-      setArtists(filtered);
-      setLoading(false);
-    }, 500);
-  };
-
-  const handleClear = () => {
-    setSearchQuery('');
-    setSelectedGenre('all');
-    setArtists(mockArtists);
-  };
-
   return (
-    <div className="min-h-screen bg-void-black">
-      <Header />
-      
-      <main>
-        {/* Hero Section */}
-        <div className="relative overflow-hidden">
-          {/* Metallic Background */}
-          <div className="absolute inset-0 bg-linear-to-br from-accent-crimson/12 via-metal-gunmetal/15 to-metal-charcoal/12 opacity-70"></div>
-          <div className="absolute inset-0 grid-pattern opacity-30"></div>
-          
-          {/* Floating Elements */}
-          <div className="absolute top-20 left-10 w-32 h-32 bg-accent-crimson/8 blur-3xl animate-precision-float clip-hexagon"></div>
-          <div className="absolute bottom-20 right-10 w-40 h-40 bg-metal-charcoal/10 blur-3xl animate-precision-float-slow clip-angle-dual"></div>
-          
-          {/* Content */}
-          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-28">
-            <div className="text-center">
-              <h1 className="font-display font-black text-5xl sm:text-6xl md:text-7xl mb-6">
-                <span className="block metal-text-crimson animate-pulse-sheen">
-                  DISCOVER
-                </span>
-                <span className="block mt-2 metal-text-steel">
-                  AMAZING ARTISTS
-                </span>
-              </h1>
-              
-              <p className="text-xl md:text-2xl font-body font-medium text-white/80 mb-8 max-w-3xl mx-auto">
-                Follow your favorite musicians and discover new talent
-              </p>
-            </div>
-          </div>
-          
-          <div className="absolute bottom-0 left-0 right-0 h-32 bg-linear-to-t from-void-black to-transparent"></div>
-        </div>
-
-        {/* Search Section */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-16 relative z-10">
-          <div className="glass-dark p-6 md:p-8 shadow-metal-crimson/20 shadow-2xl border border-metal-steel/20 animate-mechanical-scale clip-angle-dual">
-            <form onSubmit={handleSearch} className="space-y-6 md:space-y-0 md:flex md:gap-4 md:items-end">
-              <div className="flex-1">
-                <label htmlFor="artist-search" className="block text-sm font-display font-bold uppercase tracking-wider text-accent-crimson mb-2">
-                  Search Artists
-                </label>
-                <input
-                  type="text"
-                  id="artist-search"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Artist name"
-                  className="input-metal w-full"
-                />
-              </div>
-              <div className="flex-1">
-                <label htmlFor="genre-select" className="block text-sm font-display font-bold uppercase tracking-wider text-metal-steel mb-2">
-                  Genre
-                </label>
-                <select
-                  id="genre-select"
-                  value={selectedGenre}
-                  onChange={(e) => setSelectedGenre(e.target.value)}
-                  className="input-metal w-full"
-                >
-                  <option value="all">All Genres</option>
-                  {genres.map((genre) => (
-                    <option key={genre} value={genre}>
-                      {genre}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  type="submit"
-                  className="btn-metal btn-metal-crimson flex-1 md:flex-none"
-                >
-                  Search
-                </button>
-                <button
-                  type="button"
-                  onClick={handleClear}
-                  className="btn-secondary"
-                >
-                  Clear
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-
-        {/* Results Section */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-          <ArtistList artists={artists} loading={loading} />
-        </div>
-      </main>
-
-      {/* Footer */}
-      <footer className="relative border-t border-white/10 mt-20">
-        <div className="absolute inset-0 bg-linear-to-t from-obsidian to-transparent opacity-70"></div>
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="text-center">
-            <h3 className="font-display font-black text-2xl mb-2">
-              <span className="metal-text-crimson">FIND</span>
-              <span className="text-metal-steel ml-2">CONCERTS</span>
-            </h3>
-            <p className="text-white/60 text-sm font-body font-medium">
-              The ultimate social network for live music
-            </p>
-            <div className="mt-4 text-xs text-white/40 font-display tracking-wider font-bold">
-              © 2024 FIND CONCERTS • ALL RIGHTS RESERVED
-            </div>
-          </div>
-        </div>
-      </footer>
-    </div>
+    <DirectoryPage
+      endpoint="/artists"
+      schema={artistSchema}
+      eyebrow="THE PEOPLE MAKING THE NOISE"
+      title="Find your next favourite."
+      description="Artists from collected venue lineups. Follow them to hear when another show lands."
+      render={(artists) => <ArtistList artists={artists} />}
+    />
   );
 }

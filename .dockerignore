@@ -1,0 +1,16 @@
+.git
+.next
+AGENTS.md
+.data
+node_modules
+out
+coverage
+playwright-report
+test-results
+.env
+.env.*
+**/*.sqlite
+**/*.sqlite-wal
+**/*.sqlite-shm
+**/*.xlsx
+**/*.numbers

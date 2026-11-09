@@ -4,17 +4,17 @@ info:
     # What is the Bandsintown API?
 
     The Bandsintown API is designed for artists and enterprises representing artists.
-    
-    
+
+
     It offers read-only access to artist info and artist events:
-    
+
     - artist info: returns the link to the Bandsintown artist page, the link to the artist photo, the current number of trackers and more
-    
+
     - artist events: returns the list of events including their date and time, venue name and location, ticket links, lineup, description and the link to the Bandsintown event page
-    
-    
+
+
     Note you can specify if you only want to return upcoming events, past events, all events, or events within a given date range.
-    
+
 
     # Getting Started
 
@@ -24,8 +24,7 @@ info:
 
     - Call our Bandsintown API with the app ID provided straight from your website or back-end platform and choose which element of the API response you wish to display. Scroll to the bottom of this page to find out about the Models used.
 
-
-  version: "3.0.0"
+  version: '3.0.0'
   title: Bandsintown API
   contact:
     name: Bandsintown
@@ -36,63 +35,63 @@ info:
     url: https://corp.bandsintown.com/data-applications-terms
 
 schemes:
-- https
+  - https
 
-host: "rest.bandsintown.com"
+host: 'rest.bandsintown.com'
 paths:
   /artists/{artistname}:
     get:
       tags:
-      - artist information
+        - artist information
       summary: Get artist information
       operationId: artist
       description: |
         Get artist information
       produces:
-      - application/json
+        - application/json
       parameters:
-      - in: path
-        name: artistname
-        description: "The name of the artist. If it contains one of the special characters below, please be sure to replace it by the corresponding code: for / use %252F, for ? use %253F, for * use %252A, and for \" use %27C"
-        required: true
-        type: string
-      - in: query
-        name: app_id
-        description: The application ID assigned to you by Bandsintown
-        required: true
-        type: string
+        - in: path
+          name: artistname
+          description: 'The name of the artist. If it contains one of the special characters below, please be sure to replace it by the corresponding code: for / use %252F, for ? use %253F, for * use %252A, and for " use %27C'
+          required: true
+          type: string
+        - in: query
+          name: app_id
+          description: The application ID assigned to you by Bandsintown
+          required: true
+          type: string
       responses:
         200:
-          description: "200 response"
+          description: '200 response'
           schema:
             $ref: '#/definitions/ArtistData'
-            
+
   /artists/{artistname}/events:
     get:
       tags:
-      - artist events
+        - artist events
       summary: Get upcoming, past, or all artist events, or events within a date range
       operationId: artistEvents
       description: |
         artist events
       produces:
-      - application/json
+        - application/json
       parameters:
-      - in: path
-        name: artistname
-        description: "The name of the artist. If it contains one of the special characters below, please be sure to replace it by the corresponding code: for / use %252F, for ? use %253F, for * use %252A, and for \" use %27C"
-        required: true
-        type: string
-      - in: query
-        name: app_id
-        description: The application ID assigned to you by Bandsintown
-        required: true
-        type: string
-      - in: query
-        name: date
-        description: "Can be one of the following values: \"upcoming\", \"past\", \"all\", or a date range e.g. \"2015-05-05,2017-05-05\". If not specified, only upcoming shows are returned"
-        required: false
-        type: string
+        - in: path
+          name: artistname
+          description: 'The name of the artist. If it contains one of the special characters below, please be sure to replace it by the corresponding code: for / use %252F, for ? use %253F, for * use %252A, and for " use %27C'
+          required: true
+          type: string
+        - in: query
+          name: app_id
+          description: The application ID assigned to you by Bandsintown
+          required: true
+          type: string
+        - in: query
+          name: date
+          description: 'Can be one of the following values: "upcoming", "past", "all", or a date range e.g. "2015-05-05,2017-05-05". If not specified, only upcoming shows are returned'
+          required: false
+          type: string
       responses:
         200:
           description: Shows within a date range for the selected artist
@@ -105,14 +104,14 @@ definitions:
   ArtistData:
     type: object
     required:
-    - name
-    - url
-    - image_url
-    - thumb_url
-    - facebook_page_url
-    - mbid
-    - tracker_count
-    - upcoming_event_count
+      - name
+      - url
+      - image_url
+      - thumb_url
+      - facebook_page_url
+      - mbid
+      - tracker_count
+      - upcoming_event_count
     properties:
       id:
         type: integer
@@ -146,14 +145,14 @@ definitions:
   EventData:
     type: object
     required:
-    - id
-    - artist_id
-    - url
-    - on_sale_datetime
-    - datetime
-    - venue
-    - offers
-    - lineup
+      - id
+      - artist_id
+      - url
+      - on_sale_datetime
+      - datetime
+      - venue
+      - offers
+      - lineup
     properties:
       id:
         type: string
@@ -191,12 +190,12 @@ definitions:
   VenueData:
     type: object
     required:
-    - name
-    - latitude
-    - longitude
-    - city
-    - region
-    - country
+      - name
+      - latitude
+      - longitude
+      - city
+      - region
+      - country
     properties:
       name:
         type: string
@@ -221,9 +220,9 @@ definitions:
   OfferData:
     type: object
     required:
-    - type
-    - url
-    - status
+      - type
+      - url
+      - status
     properties:
       type:
         type: string

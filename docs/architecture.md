@@ -1,0 +1,78 @@
+# Architecture
+
+The app uses Next.js App Router pages and versioned Node route handlers.
+TanStack Query manages browser server state; one shared provider keeps session,
+saved-item, and follow state consistent across pages. Guest saves use browser
+storage and are not silently copied into an account.
+
+## Server and storage
+
+`src/server/store.ts` reuses one `node:sqlite` connection per process. SQLite
+uses WAL, a busy timeout, foreign keys, prepared statements, transactions, and
+indexes for owner/date lookups, source dates, saves, notifications, and jobs.
+It avoids a second Express server, database pool, or mandatory Redis/Valkey
+service for this single-host workload. The queue and public-response cache are
+persistent database tables rather than process-local promises or timers.
+
+This is a deliberate change from the original mock/static app and speculative
+PostgreSQL/NextAuth architecture. Local username/password authentication uses
+salted scrypt hashes and opaque, revocable sessions. Only session-token hashes
+are stored. Cookies are HttpOnly, SameSite=Lax, Secure on HTTPS, and expire after
+30 days. Mutations require the configured same origin; cross-origin credential
+access is not enabled. Authentication, general API, import, provider, email,
+and collector limits are enforced server-side.
+
+Public concert rows have no owner. Imported rows have an account owner and a
+separate ID namespace. Public listings, public artist/venue directories,
+trending, sitemaps, and structured data never include imports. Every private
+read checks ownership, including detail and calendar routes. Private HTML is
+dynamic; a client access boundary also hides stale private content after logout.
+Account deletion cascades to its records, saves, sessions, subscriptions,
+imports, and notifications. The app does not encrypt the database at rest.
+
+## Discovery
+
+Filtering searches concert titles, support acts, venues, cities, countries,
+local calendar dates, and genres. Recommendations use actual saved genres,
+followed artists, and followed venues, and exclude saved, canceled, postponed,
+or past events. Similar shows use the selected concert as their seed.
+Trending ranks actual account saves in the chosen area; absent popularity does
+not become an invented count. Tours group multiple collected dates by artist
+without claiming an official tour name.
+
+Calendar exports escape and fold iCalendar text, preserve time offsets, use
+exclusive all-day end dates, and reject unconfirmed dates. Private attendance
+plans and workbook notes are not included in calendar links.
+
+## Collection and jobs
+
+Venue adapters parse only the current event content, explicit dates, and
+genre words found in the venue description. Known access restrictions and
+layout changes are surfaced. Public metadata links back to the original page;
+the app does not republish long artist biographies. Private data is never
+sent to sources or used as a hidden provider search.
+
+CLI and scheduled collection use the same persistent queue. Jobs have exclusive,
+renewable ten-minute leases, bounded attempts, and completion ownership checks.
+Only one scrape job can be pending/running at a time. Notifications are unique
+per account and event. Failed notification delivery retries with backoff up to
+five attempts; source failures remain explicit until a later collection.
+In-app notifications work without external services. SMTP requires confirmed
+ownership, push requires permission and a supported endpoint, and push delivery
+is tied to the signed-in session. External delivery is at-least-once on failure;
+a process crash after a provider accepts a message can cause a retry.
+
+## Performance and monitoring
+
+Route-level bundles and React Query avoid loading import and integration
+interfaces on every page. Next Image optimizes supported venue posters.
+The server caches only the public catalogue for 30 seconds; changes invalidate
+it. API responses use `private, no-store`. The service worker caches public
+static assets and a generic offline page, never API or private HTML responses.
+
+Pino records request IDs, resource paths, status codes, and durations, not
+request bodies, cookies, passwords, search strings, or imported rows. First-party
+operational timing aggregates expire after 14 days. Browser usage counts and
+Core Web Vitals require opt-in and honor Do Not Track. Optional Sentry receives
+only generic failure messages and random request IDs with automatic collection
+disabled. Hosting logs and backups remain the operator's responsibility.

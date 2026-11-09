@@ -1,37 +1,15 @@
-export const formatDate = (dateString: string): string => {
-  const date = new Date(dateString);
-  return date.toLocaleDateString('en-US', {
-    weekday: 'short',
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
-  });
-};
-
-export const formatTime = (dateString: string): string => {
-  const date = new Date(dateString);
-  return date.toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-};
-
-export const formatDateTime = (dateString: string): string => {
-  const date = new Date(dateString);
-  return date.toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'short',
+export function formatDate(value: string, short = false): string {
+  const date = new Date(`${value.slice(0, 10)}T12:00:00Z`);
+  if (!Number.isFinite(date.getTime())) return 'Date to be announced';
+  return date.toLocaleDateString('en-GB', {
     day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
+    month: short ? 'short' : 'long',
+    ...(short ? {} : { year: 'numeric' }),
+    timeZone: 'UTC',
   });
-};
+}
 
-export const cn = (...classes: string[]): string => {
-  return classes.filter(Boolean).join(' ');
-};
-
-export const truncateText = (text: string, maxLength: number): string => {
-  if (text.length <= maxLength) return text;
-  return text.substring(0, maxLength) + '...';
-};
+export function formatTime(value: string, dateOnly = false): string {
+  if (dateOnly || value.length === 10) return 'Time to be announced';
+  return `${value.slice(11, 16)} / venue local time`;
+}
