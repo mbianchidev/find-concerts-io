@@ -57,7 +57,8 @@ jobs:
         run: |
           docker run --detach --name concerts-ci --publish 127.0.0.1:3200:3000 \
             --env APP_ORIGIN=http://localhost:3200 find-concerts-io:ci
-          curl --fail --silent --show-error --retry 20 --retry-connrefused --retry-delay 1 \
+          curl --fail --silent --show-error --retry 20 --retry-all-errors --retry-delay 1 \
+            --connect-timeout 2 --max-time 10 --retry-max-time 60 \
             http://127.0.0.1:3200/api/v1/health/
           docker exec --detach concerts-ci npm run worker
           ready=false
