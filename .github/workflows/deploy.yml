@@ -55,12 +55,12 @@ jobs:
         run: docker build --no-cache --tag find-concerts-io:ci .
       - name: Smoke-test production web and worker
         run: |
-          docker run --detach --name concerts-ci --publish 127.0.0.1:3200:3000 \
-            --env APP_ORIGIN=http://localhost:3200 find-concerts-io:ci
+          docker run --detach --init --name concerts-ci --publish 127.0.0.1:3200:3000 \
+            --env APP_ORIGIN=http://localhost:3200 \
+            --env SCRAPE_INTERVAL_MINUTES= find-concerts-io:ci
           curl --fail --silent --show-error --retry 20 --retry-all-errors --retry-delay 1 \
             --connect-timeout 2 --max-time 10 --retry-max-time 60 \
             http://127.0.0.1:3200/api/v1/health/
-          docker exec --detach concerts-ci npm run worker
           ready=false
           for attempt in $(seq 1 15); do
             if docker exec concerts-ci node --import tsx scripts/worker-health.ts; then
@@ -71,6 +71,8 @@ jobs:
             sleep 1
           done
           test "$ready" = true
+          docker stop --timeout 35 concerts-ci
+          test "$(docker inspect --format '{{.State.ExitCode}}' concerts-ci)" = 143
       - name: Container logs and cleanup
         if: always()
         run: |

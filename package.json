@@ -4,9 +4,9 @@
   "description": "A modern, responsive web application for discovering music events worldwide. Built with Next.js, TypeScript, and Tailwind CSS.",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "node --import tsx scripts/server.ts dev",
     "build": "next build",
-    "start": "next start",
+    "start": "node --import tsx scripts/server.ts start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts",

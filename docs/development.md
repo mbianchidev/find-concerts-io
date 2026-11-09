@@ -8,14 +8,13 @@ Copy `.env.example` to `.env.local`; never commit provider credentials or privat
 `APP_ORIGIN` must exactly match the browser origin, including its port.
 HTTP is accepted only for localhost; public deployments require HTTPS.
 
-Run `npm run dev`, then open `http://localhost:3000`. Browsing and guest saves
+Run `npm run dev`, then open `http://localhost:3000`. The development and
+production startup commands both launch the web server and its background worker.
+No second terminal or separate worker command is needed. Browsing and guest saves
 do not require an account. Create an account to sync saves, use private imports,
 or receive followed-artist and venue notifications.
 
 ```bash
-# Separate terminal: persistent jobs and optional scheduled collection.
-npm run worker
-
 # One-off collection, serialized with worker collection jobs.
 npm run scrape
 
@@ -34,9 +33,21 @@ source is uncollected or six hours old. Refreshing one city does not postpone
 other sources. City options are repeatable and case-insensitive; unsupported
 cities fail explicitly. If a collector job with different options is already
 queued, the CLI reports the conflict instead of silently ignoring its requested scope.
-Omit that variable for queue-only operation. Administrators can queue collection
+Managed server startup defaults to 360 minutes when the variable is omitted.
+Set `SCRAPE_INTERVAL_MINUTES=` explicitly for queue-only operation without website
+requests. The standalone `npm run worker` command remains available for a
+deliberately separate worker deployment; do not run it alongside the managed
+server. Administrators can queue collection
 at `/sources` when the worker is online. No public registration can claim admin.
 The CLI, web app, and worker must use the **same `DATABASE_PATH`**.
+
+Server options still pass through, for example
+`npm start -- --hostname 127.0.0.1 --port 3000`. Both child processes receive the
+same loaded environment and database path. Ctrl+C or SIGTERM stops both. If either
+process fails, the other is stopped and startup exits with a failure code instead
+of leaving a web server running without its collector. Shutdown allows 30 seconds
+for current work before forcefully stopping remaining processes; unfinished jobs
+are recovered through their existing queue leases after restart.
 
 Collection covers The Underworld and The Black Heart in London, metal.de's
 public concert calendar for Berlin, and Metal Agenda for Amsterdam, Haarlem,
@@ -81,6 +92,10 @@ They use reserved `.data/e2e.sqlite` and `.data/e2e-webkit.sqlite` databases so
 browser sessions and rate limits cannot interfere. `npm run test:seed` and its
 validated `--browser chromium|webkit` selector reset only those test databases,
 never the normal `.data/concerts.sqlite` file. Do not put real records in them.
+These servers still start their workers automatically, but explicitly disable
+scheduled website collection so tests never fetch or import real concert data.
+Synthetic process tests also cover startup, shared configuration, peer failures,
+and bounded shutdown.
 
 Authentication coverage checks immediate username/logout changes without a hard
 reload, real cookie persistence, blocked-cookie failures, profile edits,
@@ -102,22 +117,25 @@ it is not needed for ordinary development.
 ```bash
 npm run build
 npm run start
-# Separate supervised process:
-npm run worker
 ```
 
 Or build and run the supplied containers using your configured container runtime:
 
 ```bash
 docker compose --env-file .env.local build --no-cache
-docker compose --env-file .env.local up -d
-docker compose logs -f app worker
+docker compose --env-file .env.local up -d --remove-orphans
+docker compose logs -f app
 ```
 
-The app and worker share a named `concert-data` volume. The HTTP port is bound
+The single app container supervises the web server and worker, sharing the
+existing named `concert-data` volume. `--remove-orphans` removes the old separate
+worker container when upgrading, without deleting that data volume. Container
+health requires both HTTP readiness and a current worker heartbeat. Compose
+restarts the managed pair together and allows 35 seconds for container shutdown.
+The HTTP port is bound
 to loopback by default. Put a TLS reverse proxy in front, set `APP_ORIGIN` to
 the public HTTPS origin, and set `TRUST_PROXY=true` only when that proxy controls
-the forwarded header chain. Both services run as an unprivileged user.
+the forwarded header chain. Both processes run as an unprivileged user.
 
 Use a persistent local filesystem for SQLite, not NFS or ephemeral serverless
 storage. This deployment targets **one host**, with one app and worker sharing

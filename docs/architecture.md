@@ -67,6 +67,19 @@ plans and workbook notes are not included in calendar links.
 
 ## Collection and jobs
 
+`scripts/server.ts` starts Next and the worker together for both `npm run dev`
+and `npm start`. They remain separate OS processes with the same loaded
+environment and SQLite path, so background collection does not run on the HTTP
+server's event loop. Missing collection configuration defaults to six hours;
+an explicitly empty interval disables scheduled website requests while retaining
+queue processing.
+
+The launcher forwards shutdown to both processes, stops the peer when either
+fails, and returns a failure exit code. Unix process groups include Next's own
+development-server children in cleanup. A 30-second shutdown deadline prevents
+orphaned or indefinitely hanging workers. Docker uses the same launcher directly;
+Compose no longer starts a duplicate worker service.
+
 Venue adapters parse only the current event content, explicit dates, and
 genre words found in the venue description. Known access restrictions and
 layout changes are surfaced. Public metadata links back to the original page;

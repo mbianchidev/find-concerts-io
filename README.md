@@ -14,7 +14,7 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Open [localhost:3000](http://localhost:3000). In another terminal, run `npm run worker` for collection and notifications. For one collection run, use `npm run scrape`.
+Open [localhost:3000](http://localhost:3000). Both `npm run dev` and `npm start` automatically start the background worker, with six-hour collection by default. Stop the server to stop both processes. For one collection run, use `npm run scrape`.
 
 Private data lives in `.data/`, which is ignored by Git and Docker builds. Keep it outside disposable checkouts or export it before removing a worktree. Public registration never grants administrator access.
 

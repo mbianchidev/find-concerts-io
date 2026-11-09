@@ -22,5 +22,5 @@ COPY src/types ./src/types
 COPY scripts ./scripts
 USER node
 EXPOSE 3000
-HEALTHCHECK --interval=30s --timeout=10s --start-period=20s CMD node -e "fetch('http://127.0.0.1:3000/api/v1/health/').then(r=>process.exit(r.ok?0:1)).catch(e=>{console.error(e.message);process.exit(1)})"
-CMD ["npm", "run", "start", "--", "--hostname", "0.0.0.0"]
+HEALTHCHECK --interval=30s --timeout=10s --start-period=20s CMD node -e "fetch('http://127.0.0.1:3000/api/v1/health/').then(r=>process.exit(r.ok?0:1)).catch(e=>{console.error(e.message);process.exit(1)})" && node --import tsx scripts/worker-health.ts
+CMD ["node", "--import", "tsx", "scripts/server.ts", "start", "--hostname", "0.0.0.0"]
