@@ -2,97 +2,154 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { useApp } from './AppProvider';
+import Icon from './Icon';
+
+const links = [
+  { href: '/', label: 'Discover' },
+  { href: '/artists', label: 'Artists' },
+  { href: '/venues', label: 'Venues' },
+  { href: '/tours', label: 'Tours' },
+  { href: '/saved', label: 'My shows' },
+  { href: '/import', label: 'Import' },
+];
 
 export default function Header() {
   const pathname = usePathname();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-  const isActive = (path: string) => {
-    return pathname === path;
-  };
-
-  const navLinks = [
-    { href: '/', label: 'Concerts' },
-    { href: '/artists', label: 'Artists' },
-    { href: '/venues', label: 'Venues' },
-    { href: '/tours', label: 'Tours' },
-  ];
+  const [open, setOpen] = useState(false);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const { user, saves, signOut, authPending, authStatus } = useApp();
+  const [logoutError, setLogoutError] = useState<string | null>(null);
 
   return (
-    <header className="glass-dark sticky top-0 z-50 border-b border-metal-steel/20 backdrop-blur-xl clip-angle-br">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-20">
-          {/* Logo */}
-          <div className="flex items-center">
-            <Link href="/" className="group">
-              <h1 className="text-2xl md:text-3xl font-display font-black tracking-wider cursor-pointer transition-all duration-300">
-                <span className="metal-text-crimson animate-pulse-sheen">FIND</span>
-                <span className="text-metal-steel ml-2">CONCERTS</span>
-              </h1>
-            </Link>
-          </div>
-          
-          {/* Desktop Navigation */}
-          <nav className="hidden md:block">
-            <div className="flex items-center space-x-2">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className={`px-4 py-2 font-display text-sm font-bold uppercase tracking-wider transition-all duration-300 clip-angle-tl ${
-                    isActive(link.href)
-                      ? 'metal-text-steel metal-border-steel bg-metal-steel/10' 
-                      : 'text-white/70 hover:text-metal-crimson hover:bg-white/5'
-                  }`}
-                >
-                  {link.label}
-                </Link>
-              ))}
-            </div>
-          </nav>
-
-          {/* Mobile Menu Button */}
-          <div className="md:hidden">
-            <button
-              type="button"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="relative p-2 glass bg-white/5 hover:bg-white/10 transition-all duration-300 group clip-angle-dual"
-              aria-expanded={mobileMenuOpen}
+    <header
+      className="site-header"
+      onKeyDown={(event) => {
+        if (event.key === 'Escape' && open) {
+          setOpen(false);
+          trigger.current?.focus();
+        }
+      }}
+    >
+      <a className="skip-link" href="#main">
+        Skip to content
+      </a>
+      <div className="container header-inner" data-authenticated={!!user}>
+        <Link
+          href="/"
+          className="brand"
+          aria-label="Find Concerts home"
+          onClick={() => setOpen(false)}
+        >
+          <span className="brand-mark">
+            <svg
+              viewBox="0 0 32 32"
+              width="26"
+              height="26"
+              fill="none"
+              aria-hidden="true"
             >
-              <span className="sr-only">Open main menu</span>
-              <div className="w-6 h-5 relative flex flex-col justify-between">
-                <span className={`w-full h-0.5 bg-accent-crimson rounded-full transition-all duration-300 ${mobileMenuOpen ? 'rotate-45 translate-y-2' : ''}`}></span>
-                <span className={`w-full h-0.5 bg-metal-steel rounded-full transition-all duration-300 ${mobileMenuOpen ? 'opacity-0' : ''}`}></span>
-                <span className={`w-full h-0.5 bg-accent-cobalt rounded-full transition-all duration-300 ${mobileMenuOpen ? '-rotate-45 -translate-y-2' : ''}`}></span>
-              </div>
-            </button>
-          </div>
-        </div>
-
-        {/* Mobile Navigation */}
-        {mobileMenuOpen && (
-          <div className="md:hidden py-4 border-t border-white/10 animate-mechanical-slide">
-            <div className="flex flex-col space-y-2">
-              {navLinks.map((link, index) => {
-                const delayClass = ['delay-100', 'delay-200', 'delay-300', 'delay-400'][index] || '';
-                return (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className={`px-4 py-3 font-display text-sm font-bold uppercase tracking-wider transition-all duration-300 animate-mechanical-slide clip-angle-tl ${delayClass} ${
-                      isActive(link.href)
-                        ? 'metal-text-steel metal-border-steel bg-metal-steel/10' 
-                        : 'text-white/70 hover:text-metal-crimson hover:bg-white/5'
-                    }`}
-                  >
-                    {link.label}
-                  </Link>
+              <path
+                d="M6 10v12M12 5v22M18 10v12M24 7v18"
+                stroke="currentColor"
+                strokeWidth="3"
+              />
+            </svg>
+          </span>
+          <span>
+            FIND CONCERTS
+            <span className="brand-caption">GOOD MUSIC. REAL PLANS.</span>
+          </span>
+        </Link>
+        <nav
+          id="main-navigation"
+          className="main-nav"
+          data-open={open}
+          aria-label="Main navigation"
+        >
+          {links.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              aria-current={pathname === link.href ? 'page' : undefined}
+              onClick={() => setOpen(false)}
+            >
+              {link.label}
+              {link.href === '/saved' &&
+                saves.filter((item) => item.type === 'event').length > 0 && (
+                  <span className="nav-count">
+                    {saves.filter((item) => item.type === 'event').length}
+                  </span>
+                )}
+            </Link>
+          ))}
+        </nav>
+        <div className="header-actions">
+          {authStatus === 'loading' ? (
+            <span className="account-pending" role="status">
+              Checking account...
+            </span>
+          ) : (
+            <Link
+              className="account-link"
+              href={user ? '/account#profile' : '/account'}
+              aria-label={
+                user
+                  ? `Profile settings for ${user.username}`
+                  : authStatus === 'error'
+                    ? 'Account'
+                    : 'Sign in'
+              }
+              onClick={() => setOpen(false)}
+              title={user?.username}
+            >
+              <Icon name="user" />
+              <span>
+                {user
+                  ? user.username
+                  : authStatus === 'error'
+                    ? 'Account'
+                    : 'Sign in'}
+              </span>
+            </Link>
+          )}
+          {user && (
+            <button
+              className="logout-button"
+              disabled={authPending}
+              onClick={() => {
+                setLogoutError(null);
+                void signOut().catch((error: unknown) =>
+                  setLogoutError(
+                    error instanceof Error
+                      ? error.message
+                      : 'Log out failed. Try again.'
+                  )
                 );
-              })}
-            </div>
-          </div>
+              }}
+            >
+              {authPending ? 'Working...' : 'Log out'}
+            </button>
+          )}
+          <button
+            ref={trigger}
+            className="icon-button mobile-toggle"
+            aria-label={open ? 'Close navigation' : 'Open navigation'}
+            aria-expanded={open}
+            aria-controls="main-navigation"
+            onClick={() => {
+              setOpen(!open);
+              trigger.current?.focus();
+            }}
+          >
+            <Icon name={open ? 'close' : 'menu'} />
+          </button>
+        </div>
+        {logoutError && (
+          <p className="container header-error" role="alert">
+            {logoutError}
+          </p>
         )}
       </div>
     </header>

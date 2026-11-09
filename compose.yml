@@ -1,0 +1,21 @@
+services:
+  app:
+    image: find-concerts-io:local
+    build: .
+    ports:
+      - '127.0.0.1:${PORT:-3000}:3000'
+    env_file:
+      - path: .env.local
+        required: false
+    environment:
+      DATABASE_PATH: /data/concerts.sqlite
+      APP_ORIGIN: ${APP_ORIGIN:-http://localhost:3000}
+    volumes:
+      - concert-data:/data
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 35s
+    security_opt:
+      - no-new-privileges:true
+volumes:
+  concert-data:

@@ -1,11 +1,13 @@
 # GitHub Copilot Instructions - Find Concerts IO
 
 ## Project Overview
+
 This is a music event search application that helps users discover concerts, festivals, and live music events. The app integrates with multiple music APIs and provides features like artist following, event recommendations, and venue information.
 
 ## Technology Stack
 
 ### Frontend:
+
 - **Framework:** Next.js 14+ with App Router
 - **Language:** TypeScript (strict mode enabled)
 - **Styling:** Tailwind CSS with custom design system
@@ -16,6 +18,7 @@ This is a music event search application that helps users discover concerts, fes
 - **PWA:** Next.js PWA plugin for offline functionality
 
 ### Backend:
+
 - **Runtime:** Node.js with TypeScript
 - **Framework:** Express.js or Fastify
 - **Database:** PostgreSQL with Prisma ORM
@@ -25,6 +28,7 @@ This is a music event search application that helps users discover concerts, fes
 - **Background Jobs:** Bull Queue with Redis
 
 ### External APIs:
+
 - Bandsintown API (Primary event data source)
 - Spotify API (Artist information and music samples)
 - Ticketmaster API (Additional event and venue data)
@@ -34,6 +38,7 @@ This is a music event search application that helps users discover concerts, fes
 ## Code Style Guidelines
 
 ### TypeScript:
+
 - Use strict TypeScript configuration
 - Prefer interfaces over types for object shapes
 - Use proper generic constraints
@@ -42,6 +47,7 @@ This is a music event search application that helps users discover concerts, fes
 - Avoid `any` type; use unknown where necessary
 
 ### React/Next.js:
+
 - Use functional components with hooks
 - Prefer Server Components when possible
 - Use proper error boundaries
@@ -50,6 +56,7 @@ This is a music event search application that helps users discover concerts, fes
 - Follow the Next.js App Router patterns
 
 ### API Design:
+
 - Use RESTful endpoints where appropriate
 - Implement proper HTTP status codes
 - Use consistent response formats
@@ -58,6 +65,7 @@ This is a music event search application that helps users discover concerts, fes
 - Use proper error handling middleware
 
 ### Database:
+
 - Use Prisma schema-first approach
 - Implement proper database indexes
 - Use transactions for multi-table operations
@@ -97,7 +105,7 @@ API service Classes:
 ```typescript
 class BandsinTownService {
   private readonly baseUrl = 'https://rest.bandsintown.com';
-  
+
   async searchEvents(params: SearchParams): Promise<Event[]> {
     // Implementation with proper error handling and caching
   }
@@ -105,6 +113,7 @@ class BandsinTownService {
 ```
 
 # Important Guidelines for Copilot:
+
 - Follow established patterns and conventions
 - Include proper TypeScript types
 - Implement error handling
@@ -117,7 +126,9 @@ class BandsinTownService {
 - Implement proper loading and error states
 
 # Project Context:
+
 Consumer-facing application focused on music discovery, UX, performance and user experience are critical, mobile-first responsive design, International users consideration (timezones, currencies, languages), Analytics tracking for user behavior, GDPR and privacy compliance
 
 # Important
+
 DO NOT ALLUCINATE, keep the changes scoped to the request, always test that the code works as expected, and ensure that the code adheres to the project's coding standards and guidelines.

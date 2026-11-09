@@ -1,127 +1,107 @@
 'use client';
 
-import { Event } from '@/types';
-import { getArtistById } from '@/data/mockData';
-import { formatDate, formatTime } from '@/lib/utils';
-import { useWishlist } from '@/lib/hooks';
 import Image from 'next/image';
+import Link from 'next/link';
+import type { Event } from '@/types';
+import { formatDate, formatTime } from '@/lib/utils';
+import { useApp } from './AppProvider';
+import Icon from './Icon';
 
-interface EventCardProps {
+export default function EventCard({
+  event,
+  className = '',
+}: {
   event: Event;
   className?: string;
-}
-
-export default function EventCard({ event, className = '' }: EventCardProps) {
-  const artist = getArtistById(event.artist_id);
-  const { isInWishlist, toggleWishlist } = useWishlist();
-  const isWished = isInWishlist(event.id);
-
-  if (!artist) return null;
-
-  const eventDate = formatDate(event.datetime);
-  const eventTime = formatTime(event.datetime);
-
-  const handleToggleWishlist = (e: React.MouseEvent) => {
-    e.preventDefault();
-    toggleWishlist(event.id);
-  };
-
+}) {
+  const { saves, toggleSaved, ready, pending } = useApp();
+  const saved = saves.some(
+    (item) => item.type === 'event' && item.id === event.id
+  );
   return (
-    <div className={`card-metal group ${className}`}>
-      {/* Image Container */}
-      <div className="relative h-56 w-full overflow-hidden">
-        <Image
-          src={artist.image_url}
-          alt={artist.name}
-          fill
-          className="object-cover transition-all duration-500 group-hover:scale-105 group-hover:brightness-110"
-          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-        />
-        
-        {/* Gradient Overlay */}
-        <div className="absolute inset-0 bg-linear-to-t from-void-black via-void-black/50 to-transparent"></div>
-        
-        {/* Date Badge */}
-        <div className="absolute top-3 left-3 badge-metal badge-crimson backdrop-blur-md">
-          {eventDate}
-        </div>
-        
-        {/* Wishlist Button */}
+    <article className={`event-card ${className}`}>
+      <div className="event-poster">
+        {event.image_url ? (
+          <Image
+            src={event.image_url}
+            alt=""
+            fill
+            className="poster-image"
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+          />
+        ) : (
+          <div className="poster-placeholder" aria-hidden="true">
+            <span>
+              LIVE
+              <br />& LOUD.
+            </span>
+            <Icon name="music" />
+          </div>
+        )}
+        <span className="date-ticket">
+          {event.datetime ? formatDate(event.datetime, true) : 'DATE TBA'}
+        </span>
         <button
-          onClick={handleToggleWishlist}
-          className="absolute top-3 right-3 glass-dark p-2.5 transition-all duration-300 hover:scale-110 group/wishlist clip-angle-dual"
-          aria-label={isWished ? 'Remove from wishlist' : 'Add to wishlist'}
+          className={`save-button ${saved ? 'is-saved' : ''}`}
+          aria-label={`${saved ? 'Unsave' : 'Save'} ${event.title}`}
+          aria-pressed={saved}
+          disabled={!ready || pending}
+          onClick={() => void toggleSaved('event', event.id)}
         >
-          {isWished ? (
-            <svg className="w-6 h-6 text-accent-crimson animate-pulse-sheen" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-            </svg>
-          ) : (
-            <svg className="w-6 h-6 text-white/60 group-hover/wishlist:text-accent-crimson transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-            </svg>
-          )}
+          <Icon name="bookmark" fill={saved ? 'currentColor' : 'none'} />
         </button>
+        {event.is_private && (
+          <span className="private-label">
+            <Icon name="lock" />
+            Private import
+          </span>
+        )}
       </div>
-
-      {/* Content */}
-      <div className="p-5">
-        {/* Artist Name & Time */}
-        <div className="mb-3">
-          <h3 className="text-xl font-display font-bold text-white mb-1 group-hover:text-metal-steel transition-colors">
-            {artist.name}
-          </h3>
-          <p className="text-sm text-accent-cobalt font-body font-bold">
-            {eventTime}
-          </p>
-        </div>
-
-        {/* Venue Info */}
-        <div className="mb-4 pb-4 border-b border-white/10">
-          <p className="text-base font-bold text-white/90 mb-1 font-body">
-            {event.venue.name}
-          </p>
-          <p className="text-sm text-white/60 font-medium">
-            {event.venue.city}, {event.venue.country}
-          </p>
-        </div>
-
-        {/* Description */}
-        {event.description && (
-          <p className="text-sm text-white/70 mb-4 line-clamp-2 font-medium">
-            {event.description}
-          </p>
-        )}
-
-        {/* Lineup */}
-        {event.lineup.length > 1 && (
-          <div className="mb-4">
-            <p className="text-xs text-metal-steel font-display uppercase tracking-wider mb-1 font-bold">Lineup:</p>
-            <p className="text-sm text-white/80 font-medium">
-              {event.lineup.slice(0, 3).join(', ')}
-              {event.lineup.length > 3 && ` +${event.lineup.length - 3} more`}
-            </p>
-          </div>
-        )}
-
-        {/* Footer */}
-        <div className="flex justify-between items-center mt-auto">
-          <div className="text-xs text-white/50 font-display font-bold">
-            {artist.tracker_count.toLocaleString()} followers
-          </div>
-          
-          {event.offers.length > 0 && event.offers[0].status === 'available' && (
-            <a
-              href={event.offers[0].url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn-metal btn-metal-steel text-xs py-2 px-4"
-            >
-              Tickets
-            </a>
+      <div className="event-card-body">
+        <div className="event-tags">
+          {event.genres.map((genre) => (
+            <span className="genre-tag" key={genre}>
+              {genre}
+            </span>
+          ))}
+          {event.status !== 'scheduled' && (
+            <span className="status-tag">{event.status.replace('_', ' ')}</span>
           )}
         </div>
+        <h3>
+          <Link href={`/events/${encodeURIComponent(event.id)}`}>
+            {event.title}
+          </Link>
+        </h3>
+        <p className="venue-line">
+          <Icon name="location" />
+          <span>
+            {[event.venue.name, event.venue.city].filter(Boolean).join(' / ') ||
+              'Venue to be announced'}
+          </span>
+        </p>
+        <p className="show-time">
+          {event.datetime
+            ? formatTime(event.datetime, event.date_only)
+            : event.date_label || 'Date to be announced'}
+          {event.import_details?.status && (
+            <span>{event.import_details.status}</span>
+          )}
+        </p>
+        {event.reason && <p className="muted-note">{event.reason}</p>}
+        <div className="event-card-footer">
+          <span>
+            {event.is_private ? 'Your concert history' : event.source.name}
+          </span>
+          <Link
+            href={`/events/${encodeURIComponent(event.id)}`}
+            className="show-link"
+            aria-label={`View ${event.title}`}
+          >
+            View show <Icon name="arrow" />
+          </Link>
+        </div>
       </div>
-    </div>
+    </article>
   );
 }
