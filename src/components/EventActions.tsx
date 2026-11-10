@@ -10,6 +10,7 @@ import { useApp } from './AppProvider';
 import EventList from './EventList';
 import Icon from './Icon';
 import { AccountGate, ErrorState } from './Ui';
+import ConcertStatusSelect from './ConcertStatusSelect';
 
 export function PrivateContent({
   ownerId,
@@ -65,6 +66,11 @@ export function EventActions({ event }: { event: Event }) {
           </a>
         )}
       </div>
+      {saved && (
+        <div className="detail-saved-status">
+          <ConcertStatusSelect eventId={event.id} title={event.title} />
+        </div>
+      )}
       {event.datetime && (
         <div className="detail-actions">
           <a

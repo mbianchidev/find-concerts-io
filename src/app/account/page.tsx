@@ -129,19 +129,15 @@ function Account() {
   return (
     <main className="container" id="main" tabIndex={-1}>
       <PageIntro
-        eyebrow={user ? 'YOUR ACCOUNT / YOUR CHOICE' : 'YOUR SCENE, WITH YOU'}
+        eyebrow="ACCOUNT"
         title={
-          user
-            ? `Hey, ${user.display_name || user.username}.`
-            : authStatus === 'loading'
-              ? 'Your account.'
-              : 'Make room for good nights.'
+          user ? `Hey, ${user.display_name || user.username}.` : 'Your account.'
         }
       >
         <p>
           {user
             ? 'Manage your notifications, privacy choices, and private concert data.'
-            : 'Browse without an account. Sign in to keep your saved shows, follows, and private concert history across devices.'}
+            : 'Browse without an account. Sign in to save gigs across devices, follow bands and venues, or import your concert history.'}
         </p>
       </PageIntro>
       {authStatus === 'loading' ? (
@@ -215,19 +211,17 @@ function Account() {
             <ErrorState error={error} />
           </section>
           <aside className="panel">
-            <h2>Less to manage. More to see.</h2>
+            <h2>Saved gigs and concert history.</h2>
             <p>
-              Follow artists and venues. Keep a shortlist for the next good
-              night. Bring your old spreadsheet without sharing it with the
-              world.
+              Save gigs, follow bands and venues, or import your concert
+              spreadsheet. Imported concerts aren&apos;t public.
             </p>
             <p className="muted-note">
-              Guest saves stay in this browser and are not silently uploaded
-              when you sign in. Account saves are stored separately.
+              Guest saves stay in this browser. Signing in doesn&apos;t copy
+              them to your account.
             </p>
             <p className="muted-note">
-              No social login or external account is required. Public
-              registration never grants administrator access.
+              Use a username and password. No social login required.
             </p>
           </aside>
         </div>

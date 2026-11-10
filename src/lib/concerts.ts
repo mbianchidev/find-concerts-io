@@ -1,6 +1,7 @@
 import type {
   Artist,
   Event,
+  SavedConcertStatus,
   SavedItem,
   SearchFilters,
   Tour,
@@ -9,6 +10,13 @@ import type {
 } from '@/types';
 
 export const GENRES = ['Metal', 'Hardcore punk', 'Rock', 'Punk'] as const;
+
+export const SAVED_CONCERT_STATUS_LABELS: Record<SavedConcertStatus, string> = {
+  interested: 'Interested',
+  going: 'Going',
+  went: 'Went',
+  not_going: "Didn't go",
+};
 
 export function artistKey(name: string): string {
   return name.trim().normalize('NFKC').toLowerCase().replace(/\s+/g, ' ');
@@ -33,10 +41,8 @@ export function isUpcoming(
 
 export function filterEvents(
   events: Event[],
-  filters: Pick<
-    SearchFilters,
-    'artist' | 'city' | 'location' | 'date' | 'genre'
-  >
+  filters: SearchFilters,
+  today = new Date().toISOString().slice(0, 10)
 ): Event[] {
   const contains = (value: string, query?: string) =>
     !query || value.toLowerCase().includes(query.trim().toLowerCase());
@@ -51,8 +57,72 @@ export function filterEvents(
       (!filters.city?.trim() ||
         artistKey(event.venue.city) === artistKey(filters.city)) &&
       contains(event.genres.join(' '), filters.genre) &&
-      (!filters.date || event.datetime?.slice(0, 10) === filters.date)
+      (!filters.venue || venueKey(event.venue) === filters.venue) &&
+      (!filters.period ||
+        filters.period === 'all' ||
+        (filters.period === 'upcoming' && isUpcoming(event, today)) ||
+        (filters.period === 'today' &&
+          !!event.datetime &&
+          event.datetime.slice(0, 10) <= today &&
+          (event.end_datetime || event.datetime).slice(0, 10) >= today) ||
+        (filters.period === 'past' &&
+          !!event.datetime &&
+          (event.end_datetime || event.datetime).slice(0, 10) < today)) &&
+      (!filters.date || event.datetime?.slice(0, 10) === filters.date) &&
+      (!filters.date_from ||
+        (!!event.datetime &&
+          (event.end_datetime || event.datetime).slice(0, 10) >=
+            filters.date_from)) &&
+      (!filters.date_to ||
+        (!!event.datetime && event.datetime.slice(0, 10) <= filters.date_to))
   );
+}
+
+export function sortEvents(
+  events: Event[],
+  sort: SearchFilters['sort'] = 'date_asc'
+): Event[] {
+  const dateOrder = (a: Event, b: Event, direction = 1) => {
+    const first = a.datetime ? Date.parse(a.datetime) : NaN;
+    const second = b.datetime ? Date.parse(b.datetime) : NaN;
+    if (!Number.isFinite(first)) return Number.isFinite(second) ? 1 : 0;
+    if (!Number.isFinite(second)) return -1;
+    return (first - second) * direction;
+  };
+  return events.toSorted((a, b) => {
+    const bandOrder = artistKey(a.lineup[0] || a.title).localeCompare(
+      artistKey(b.lineup[0] || b.title),
+      undefined,
+      { numeric: true }
+    );
+    const primary = sort.startsWith('band_')
+      ? bandOrder * (sort === 'band_desc' ? -1 : 1)
+      : dateOrder(a, b, sort === 'date_desc' ? -1 : 1);
+    return primary || dateOrder(a, b) || bandOrder || a.id.localeCompare(b.id);
+  });
+}
+
+export function filterSavedEvents(
+  events: Event[],
+  saves: SavedItem[],
+  status?: SavedConcertStatus,
+  includeImports = false
+): Event[] {
+  const saved = new Map(
+    saves
+      .filter((item) => item.type === 'event')
+      .map((item) => [item.id, item.status ?? 'interested'])
+  );
+  const selected = new Map<string, Event>();
+  for (const event of events) {
+    const savedStatus = saved.get(event.id);
+    if (
+      (savedStatus || (includeImports && event.is_private)) &&
+      (!status || savedStatus === status)
+    )
+      selected.set(event.id, event);
+  }
+  return [...selected.values()];
 }
 
 export function collectArtists(events: Event[]): Artist[] {
@@ -64,12 +134,14 @@ export function collectArtists(events: Event[]): Artist[] {
       if (existing) {
         existing.upcoming_event_count += 1;
         existing.genres = [...new Set([...existing.genres, ...event.genres])];
+        if (event.image_kind !== 'venue')
+          existing.image_url ||= event.image_url;
       } else {
         artists.set(id, {
           id,
           name,
           genres: [...event.genres],
-          image_url: event.image_url,
+          image_url: event.image_kind === 'venue' ? undefined : event.image_url,
           upcoming_event_count: 1,
           url: event.url,
         });
@@ -94,13 +166,13 @@ export function collectVenues(
       existing.genres = [
         ...new Set([...(existing.genres || []), ...event.genres]),
       ];
-      existing.image_url ||= event.image_url;
+      if (event.image_kind === 'venue') existing.image_url ||= event.image_url;
     } else
       venues.set(id, {
         ...event.venue,
         id,
         event_count: 1,
-        image_url: event.image_url,
+        image_url: event.image_kind === 'venue' ? event.image_url : undefined,
         genres: [...event.genres],
       });
   }
@@ -122,7 +194,7 @@ export function collectTours(events: Event[]): Tour[] {
       );
       return {
         id,
-        name: `${sorted[0].lineup[0] || sorted[0].title}: upcoming shows`,
+        name: `${sorted[0].lineup[0] || sorted[0].title}: collected shows`,
         artist: sorted[0].lineup[0] || sorted[0].title,
         start_date: sorted[0].datetime || '',
         end_date: sorted.at(-1)?.datetime || '',

@@ -3,6 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { z } from 'zod';
 import type { PageResult } from '@/types';
+import { venueFacetSchema } from './schema';
 
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH || '';
 
@@ -96,6 +97,7 @@ export async function apiPage<T>(
         page: z.number(),
         limit: z.number(),
         has_next: z.boolean(),
+        venues: z.array(venueFacetSchema).optional(),
       }),
     })
     .parse(await request(path, options));

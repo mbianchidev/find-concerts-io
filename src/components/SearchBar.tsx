@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { z } from 'zod';
-import type { SearchFilters } from '@/types';
+import type { SearchFilters, VenueFacet } from '@/types';
 import { useApiData } from '@/lib/api';
 import { artistKey } from '@/lib/concerts';
 import Icon from './Icon';
@@ -15,19 +15,31 @@ export default function SearchBar({
   initial = {},
   citiesPath = '/cities',
   scope = 'public',
+  venues = [],
+  venuesPending = false,
+  defaultPeriod = 'upcoming',
 }: {
   onSearch: (filters: SearchFilters) => void;
   initial?: SearchFilters;
   citiesPath?: '/cities' | '/me/cities';
   scope?: string;
+  venues?: VenueFacet[];
+  venuesPending?: boolean;
+  defaultPeriod?: SearchFilters['period'];
 }) {
-  const [city, setCity] = useState(initial.city || '');
-  const [location, setLocation] = useState(initial.location || '');
+  const id = useId();
+  const [place, setPlace] = useState(initial.city || initial.location || '');
   const [artist, setArtist] = useState(initial.artist || '');
-  const [date, setDate] = useState(initial.date || '');
+  const [from, setFrom] = useState(initial.date_from || initial.date || '');
+  const [to, setTo] = useState(initial.date_to || initial.date || '');
+  const [period, setPeriod] = useState(
+    initial.period ||
+      (initial.date || initial.date_from || initial.date_to
+        ? 'all'
+        : defaultPeriod)
+  );
+  const [venue, setVenue] = useState(initial.venue || '');
   const cities = useApiData(citiesPath, citiesSchema, scope);
-  const selectedCity =
-    cities.data?.find((value) => artistKey(value) === artistKey(city)) || city;
 
   return (
     <>
@@ -37,75 +49,110 @@ export default function SearchBar({
         aria-label="Find concerts"
         onSubmit={(event) => {
           event.preventDefault();
+          const city =
+            cities.data?.find(
+              (value) => artistKey(value) === artistKey(place)
+            ) ||
+            (initial.city && artistKey(initial.city) === artistKey(place)
+              ? initial.city
+              : undefined);
           onSearch({
             city: city || undefined,
-            location: location.trim() || undefined,
+            location: city ? undefined : place.trim() || undefined,
             artist: artist.trim() || undefined,
-            date: date || undefined,
+            date_from: from || undefined,
+            date_to: to || undefined,
+            period,
+            venue: venue || undefined,
           });
         }}
       >
         <div className="search-field">
-          <label htmlFor="city">
-            <Icon name="location" />
-            City
-          </label>
-          <select
-            id="city"
-            value={selectedCity}
-            disabled={cities.isPending}
-            onChange={(event) => setCity(event.target.value)}
-          >
-            <option value="">All cities</option>
-            {city &&
-              !cities.data?.some(
-                (value) => artistKey(value) === artistKey(city)
-              ) && <option value={city}>{city}</option>}
-            {cities.data?.map((value) => (
-              <option key={value} value={value}>
-                {value}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="search-field">
-          <label htmlFor="location">
+          <label htmlFor={`${id}-place`}>
             <Icon name="location" />
             Where
           </label>
           <input
-            id="location"
-            value={location}
-            onChange={(event) => setLocation(event.target.value)}
-            placeholder="Venue, area, or country"
+            id={`${id}-place`}
+            list={`${id}-cities`}
+            value={place}
+            onChange={(event) => setPlace(event.target.value)}
+            placeholder="City, venue, or country"
             maxLength={250}
+            disabled={cities.isPending}
           />
+          <datalist id={`${id}-cities`}>
+            {cities.data?.map((value) => (
+              <option key={value} value={value} />
+            ))}
+          </datalist>
         </div>
         <div className="search-field">
-          <label htmlFor="artist">
+          <label htmlFor={`${id}-artist`}>
             <Icon name="music" />
             Who
           </label>
           <input
-            id="artist"
+            id={`${id}-artist`}
             value={artist}
             onChange={(event) => setArtist(event.target.value)}
             placeholder="An artist or a support act"
             maxLength={250}
           />
         </div>
-        <div className="search-field">
-          <label htmlFor="date">
+        <fieldset className="search-field date-filter">
+          <legend>
             <Icon name="calendar" />
             When
-          </label>
-          <input
-            id="date"
-            type="date"
-            value={date}
-            onChange={(event) => setDate(event.target.value)}
-          />
-        </div>
+          </legend>
+          <div className="date-presets" role="group" aria-label="Concert dates">
+            {(
+              [
+                ['upcoming', 'Upcoming'],
+                ['today', 'Today'],
+                ['past', 'Past'],
+                ['all', 'All dates'],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                type="button"
+                key={value}
+                aria-pressed={period === value}
+                onClick={() => setPeriod(value)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="date-range">
+            <label htmlFor={`${id}-from`}>
+              From
+              <input
+                id={`${id}-from`}
+                type="date"
+                value={from}
+                max={to || undefined}
+                onChange={(event) => {
+                  setFrom(event.target.value);
+                  setPeriod('all');
+                }}
+              />
+            </label>
+            <label htmlFor={`${id}-to`}>
+              To
+              <input
+                id={`${id}-to`}
+                type="date"
+                value={to}
+                min={from || undefined}
+                onChange={(event) => {
+                  setTo(event.target.value);
+                  setPeriod('all');
+                }}
+              />
+            </label>
+          </div>
+        </fieldset>
         <button className="button search-submit" type="submit">
           <Icon name="search" />
           Find shows
@@ -114,15 +161,54 @@ export default function SearchBar({
           className="search-clear text-button"
           type="button"
           onClick={() => {
-            setCity('');
-            setLocation('');
+            setPlace('');
             setArtist('');
-            setDate('');
+            setFrom('');
+            setTo('');
+            setPeriod(defaultPeriod);
+            setVenue('');
             onSearch({});
           }}
         >
           Clear
         </button>
+        <details
+          className="advanced-filters"
+          open={initial.venue ? true : undefined}
+        >
+          <summary>Advanced filters</summary>
+          <div className="advanced-options">
+            <label htmlFor={`${id}-venue`}>Venue</label>
+            <select
+              id={`${id}-venue`}
+              value={venue}
+              disabled={venuesPending}
+              onChange={(event) => setVenue(event.target.value)}
+              aria-describedby={`${id}-venue-help`}
+            >
+              <option value="">
+                {venuesPending ? 'Loading venues...' : 'All matching venues'}
+              </option>
+              {venue && !venues.some((item) => item.id === venue) && (
+                <option value={venue} disabled>
+                  {venuesPending
+                    ? 'Loading selected venue...'
+                    : 'Selected venue has no matching shows'}
+                </option>
+              )}
+              {venues.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                  {item.city ? ` / ${item.city}` : ''} ({item.event_count})
+                </option>
+              ))}
+            </select>
+            <p className="form-help" id={`${id}-venue-help`}>
+              Counts include all shows matching the applied filters, before
+              choosing a venue.
+            </p>
+          </div>
+        </details>
       </form>
       <ErrorState error={cities.error} retry={() => void cities.refetch()} />
     </>

@@ -6,9 +6,31 @@ import {
   filterEvents,
   isUpcoming,
   recommendEvents,
+  sortEvents,
   trendingEvents,
+  venueKey,
 } from '../src/lib/concerts';
 import { concert } from './fixtures';
+import { localCalendarDate } from '../src/lib/utils';
+
+test('browser day references use the local calendar date rather than converting it to UTC', () => {
+  const previous = process.env.TZ;
+  try {
+    process.env.TZ = 'Pacific/Kiritimati';
+    assert.equal(
+      localCalendarDate(new Date('2027-04-02T23:30:00Z')),
+      '2027-04-03'
+    );
+    process.env.TZ = 'America/Los_Angeles';
+    assert.equal(
+      localCalendarDate(new Date('2027-04-03T00:30:00Z')),
+      '2027-04-02'
+    );
+  } finally {
+    if (previous === undefined) delete process.env.TZ;
+    else process.env.TZ = previous;
+  }
+});
 
 test('upcoming comparisons honor UTC offsets while date filters stay venue-local', () => {
   const west = concert({ datetime: '2027-06-01T23:00:00-04:00' });
@@ -87,6 +109,103 @@ test('city filters match the complete normalized city, not venue names or nearby
     0
   );
   assert.equal(filterEvents(events, {}).length, 3);
+});
+
+test('date ranges include both boundary days and overlapping multi-day concerts', () => {
+  const events = [
+    concert({ id: 'before', datetime: '2027-04-01' }),
+    concert({ id: 'start', datetime: '2027-04-02T23:00:00-04:00' }),
+    concert({ id: 'end', datetime: '2027-04-04T20:00:00+09:00' }),
+    concert({ id: 'after', datetime: '2027-04-05' }),
+    concert({
+      id: 'festival',
+      datetime: '2027-04-01',
+      end_datetime: '2027-04-03',
+    }),
+    concert({ id: 'unconfirmed', datetime: null }),
+  ];
+  assert.deepEqual(
+    filterEvents(events, {
+      date_from: '2027-04-02',
+      date_to: '2027-04-04',
+    }).map((event) => event.id),
+    ['start', 'end', 'festival']
+  );
+});
+
+test('date periods include today in upcoming, separate past shows, and retain unknown dates only for all dates', () => {
+  const events = [
+    concert({ id: 'past', datetime: '2027-04-01' }),
+    concert({ id: 'today', datetime: '2027-04-02' }),
+    concert({ id: 'future', datetime: '2027-04-03' }),
+    concert({
+      id: 'ongoing',
+      datetime: '2027-04-01',
+      end_datetime: '2027-04-03',
+    }),
+    concert({ id: 'unconfirmed', datetime: null }),
+    concert({ id: 'cancelled', datetime: '2027-04-03', status: 'cancelled' }),
+  ];
+  const ids = (period: 'all' | 'upcoming' | 'today' | 'past') =>
+    filterEvents(events, { period }, '2027-04-02').map((event) => event.id);
+  assert.deepEqual(ids('upcoming'), ['today', 'future', 'ongoing']);
+  assert.deepEqual(ids('today'), ['today', 'ongoing']);
+  assert.deepEqual(ids('past'), ['past']);
+  assert.equal(ids('all').length, events.length);
+  assert.deepEqual(
+    filterEvents(
+      events,
+      { period: 'upcoming', date_to: '2027-04-02' },
+      '2027-04-02'
+    ).map((event) => event.id),
+    ['today', 'ongoing']
+  );
+});
+
+test('venue filtering uses stable identity and date/band sorting is deterministic with unknown dates last', () => {
+  const first = concert({
+    id: 'z-band',
+    lineup: ['Z Mock Band'],
+    datetime: '2027-04-02T23:00:00-04:00',
+  });
+  const events = [
+    first,
+    concert({
+      id: 'a-band',
+      lineup: ['A Mock Band'],
+      datetime: '2027-04-03T02:00:00Z',
+      venue: { ...first.venue, city: 'Other Example City' },
+    }),
+    concert({
+      id: 'unknown',
+      lineup: [],
+      title: 'M Mock Band',
+      datetime: null,
+    }),
+  ];
+  assert.deepEqual(
+    filterEvents(events, { venue: venueKey(first.venue) }).map(
+      (event) => event.id
+    ),
+    ['z-band', 'unknown']
+  );
+  assert.deepEqual(
+    sortEvents(events, 'date_asc').map((event) => event.id),
+    ['a-band', 'z-band', 'unknown']
+  );
+  assert.deepEqual(
+    sortEvents(events, 'date_desc').map((event) => event.id),
+    ['z-band', 'a-band', 'unknown']
+  );
+  assert.deepEqual(
+    sortEvents(events, 'band_asc').map((event) => event.id),
+    ['a-band', 'unknown', 'z-band']
+  );
+  assert.deepEqual(
+    sortEvents(events, 'band_desc').map((event) => event.id),
+    ['z-band', 'unknown', 'a-band']
+  );
+  assert.equal(events[0], first);
 });
 
 test('recommendations use saved genres and followed support acts, excluding saved and past shows', () => {

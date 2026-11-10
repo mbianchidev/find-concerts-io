@@ -7,6 +7,11 @@ export interface Venue {
   country: string;
 }
 
+export interface VenueCoordinates {
+  latitude: number;
+  longitude: number;
+}
+
 export interface EventSource {
   id: string;
   name: string;
@@ -38,6 +43,7 @@ export interface Event {
   genres: string[];
   url: string;
   image_url?: string;
+  image_kind?: 'event' | 'artist' | 'venue';
   source: EventSource;
   status: 'scheduled' | 'cancelled' | 'postponed' | 'sold_out';
   popularity: number;
@@ -80,15 +86,21 @@ export interface SearchFilters {
   location?: string;
   artist?: string;
   date?: string;
+  date_from?: string;
+  date_to?: string;
+  period?: 'all' | 'upcoming' | 'today' | 'past';
+  venue?: string;
+  sort?: 'date_asc' | 'date_desc' | 'band_asc' | 'band_desc';
   genre?: string;
-  saved?: boolean;
-  past?: boolean;
 }
+
+export type SavedConcertStatus = 'interested' | 'going' | 'went' | 'not_going';
 
 export interface SavedItem {
   id: string;
   type: 'event' | 'artist' | 'venue';
   addedAt: string;
+  status?: SavedConcertStatus;
 }
 
 export interface User {
@@ -133,7 +145,15 @@ export interface PageResult<T> {
     page: number;
     limit: number;
     has_next: boolean;
+    venues?: VenueFacet[];
   };
+}
+
+export interface VenueFacet {
+  id: string;
+  name: string;
+  city: string;
+  event_count: number;
 }
 
 export interface SourceStatus {

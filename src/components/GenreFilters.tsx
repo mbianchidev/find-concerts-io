@@ -11,7 +11,7 @@ export default function GenreFilters({
 }) {
   return (
     <div className="genre-filters" role="group" aria-label="Filter by genre">
-      <span>FIND YOUR FREQUENCY</span>
+      <span>GENRE</span>
       {[undefined, ...GENRES].map((genre) => (
         <button
           key={genre || 'all'}
@@ -19,7 +19,7 @@ export default function GenreFilters({
           aria-pressed={value === genre || (!value && !genre)}
           onClick={() => onChange(genre)}
         >
-          {genre || 'All sounds'}
+          {genre || 'All genres'}
         </button>
       ))}
     </div>

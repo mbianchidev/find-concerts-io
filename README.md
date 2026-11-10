@@ -1,6 +1,6 @@
 # Find Concerts IO
 
-Find metal, hardcore, rock, and punk shows from venue websites and specialist calendars. Filter by city, save concerts, follow venues even without upcoming listings, get recommendations, export calendars, and manage your private concert history and profile.
+Find metal, hardcore, rock, and punk gigs. Filter by place, dates, and venue, sort by date or band, open venue maps, and keep your saved shows and concert archive. Dark mode is on by default.
 
 Next.js, React, TypeScript, TanStack Query, and SQLite. This is a **full-stack Node app**, not a static GitHub Pages export.
 
@@ -22,6 +22,7 @@ Private data lives in `.data/`, which is ignored by Git and Docker builds. Keep 
 
 - [Development, tests, and hosted deployment](docs/development.md)
 - [Architecture and data boundaries](docs/architecture.md)
+- [Saved shows, attendance statuses, and archive](docs/saved-concerts.md)
 - [Private workbook imports](docs/imports.md)
 - [API and optional integrations](docs/api.md)
 - [Privacy defaults](docs/privacy.md)

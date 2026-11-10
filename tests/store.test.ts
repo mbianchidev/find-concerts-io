@@ -145,7 +145,93 @@ test('venues persist without upcoming gigs and a v2 migration preserves accounts
     assert.equal(store.saves(user.id).length, 2);
     assert.equal(
       store.db.prepare('PRAGMA user_version').get()?.user_version,
-      3
+      4
+    );
+  } finally {
+    store?.close();
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test('a v3 upgrade preserves saves and private history while personal concert statuses survive reopening', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'concerts-status-synthetic-'));
+  const path = join(directory, 'test.sqlite');
+  let store: ConcertStore | undefined = new ConcertStore(path);
+  try {
+    const owner = store.createUser('synthetic-status-owner', 'synthetic-hash');
+    const other = store.createUser('synthetic-status-other', 'synthetic-hash');
+    const event = concert();
+    store.upsertPublic([event]);
+    store.importEvents(owner.id, {
+      events: [
+        concert({
+          id: 'synthetic-private-history',
+          datetime: '2020-04-03',
+          import_details: {
+            sheet: 'Synthetic history',
+            row: 2,
+            fields: { Status: 'Original synthetic wording' },
+            status: 'Original synthetic wording',
+          },
+        }),
+      ],
+      report: { total: 1, imported: 0, duplicates: 0, skipped: 0, issues: [] },
+    });
+    store.setSaved(owner.id, 'event', event.id, true);
+    store.setSaved(owner.id, 'artist', 'mock support', true);
+    store.setSaved(other.id, 'event', event.id, true);
+    const history = store.events(owner.id, true);
+    const addedAt = store
+      .saves(owner.id)
+      .find((item) => item.type === 'event')?.addedAt;
+    store.close();
+    store = undefined;
+
+    const legacy = new DatabaseSync(path);
+    try {
+      if (
+        legacy
+          .prepare('PRAGMA table_info(saved)')
+          .all()
+          .some((column) => column.name === 'status')
+      )
+        legacy.exec('ALTER TABLE saved DROP COLUMN status');
+      legacy.exec('PRAGMA user_version = 3');
+    } finally {
+      legacy.close();
+    }
+
+    store = new ConcertStore(path);
+    assert.equal(
+      store.saves(owner.id).find((item) => item.type === 'event')?.status,
+      'interested'
+    );
+    assert.equal(
+      store.saves(owner.id).find((item) => item.type === 'artist')?.status,
+      undefined
+    );
+    store.setSaved(owner.id, 'event', event.id, true, 'went');
+    store.setSaved(owner.id, 'event', event.id, true);
+    assert.equal(
+      store.saves(owner.id).find((item) => item.type === 'event')?.addedAt,
+      addedAt
+    );
+    store.close();
+    store = new ConcertStore(path);
+
+    assert.equal(
+      store.saves(owner.id).find((item) => item.type === 'event')?.status,
+      'went'
+    );
+    assert.equal(store.saves(other.id)[0].status, 'interested');
+    assert.deepEqual(store.events(owner.id, true), history);
+    assert.equal(
+      store.credentials(owner.username)?.password_hash,
+      'synthetic-hash'
+    );
+    assert.equal(
+      store.db.prepare('PRAGMA user_version').get()?.user_version,
+      4
     );
   } finally {
     store?.close();

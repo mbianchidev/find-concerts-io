@@ -70,6 +70,9 @@
     "write-excel-file": "^4.1.1"
   },
   "overrides": {
+    "cheerio": {
+      "encoding-sniffer": "^1.0.2"
+    },
     "@typescript-eslint/typescript-estree": {
       "minimatch": "^11.0.5"
     }

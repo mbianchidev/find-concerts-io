@@ -9,7 +9,9 @@ import {
   SimilarEvents,
 } from '@/components/EventActions';
 import Icon from '@/components/Icon';
+import VenueMap from '@/components/VenueMap';
 import { formatDate, formatTime } from '@/lib/utils';
+import { venueKey } from '@/lib/concerts';
 import { currentUser } from '@/server/auth';
 import { appOrigin } from '@/server/config';
 import { getStore } from '@/server/store';
@@ -158,15 +160,6 @@ export default async function EventPage({
             <p className="detail-description">{event.description}</p>
           )}
           <EventActions event={event} />
-          <a
-            className="show-link"
-            style={{ marginTop: 20 }}
-            href={`https://www.openstreetmap.org/search?query=${encodeURIComponent([event.venue.name, event.venue.city, event.venue.country].filter(Boolean).join(', '))}`}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Open interactive map <Icon name="external" />
-          </a>
           {!event.is_private && (
             <p className="muted-note">
               {event.source.genre_basis === 'calendar'
@@ -181,7 +174,11 @@ export default async function EventPage({
           {event.image_url ? (
             <Image
               src={event.image_url}
-              alt={`Venue poster for ${event.title}`}
+              alt={
+                event.image_kind === 'venue'
+                  ? `${event.venue.name} venue`
+                  : `Artwork for ${event.title}`
+              }
               fill
               sizes="(max-width: 800px) 90vw, 40vw"
               priority
@@ -197,6 +194,12 @@ export default async function EventPage({
           )}
         </div>
       </div>
+      <VenueMap
+        key={`${event.id}:${venueKey(event.venue)}`}
+        eventId={event.id}
+        venue={event.venue}
+        isPrivate={event.is_private}
+      />
       {event.import_details && (
         <section className="panel">
           <h2>Your original workbook fields.</h2>

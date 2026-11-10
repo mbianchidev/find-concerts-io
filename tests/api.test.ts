@@ -4,6 +4,8 @@ import { handleApi } from '../src/server/api';
 import { ConcertStore } from '../src/server/store';
 import { concert } from './fixtures';
 import { venueKey } from '../src/lib/concerts';
+import { sessionCookie } from '../src/server/auth';
+import { savedItemSchema } from '../src/lib/schema';
 
 const origin = 'http://localhost:3000';
 
@@ -234,6 +236,185 @@ test('venues with no upcoming shows remain city-filterable and followable', asyn
   }
 });
 
+test('discovery applies periods, inclusive ranges, and sorting before pagination', async (context) => {
+  context.mock.timers.enable({
+    apis: ['Date'],
+    now: new Date('2027-04-03T12:00:00Z'),
+  });
+  const store = new ConcertStore(':memory:');
+  try {
+    store.upsertPublic([
+      concert({ id: 'past', datetime: '2027-04-01' }),
+      concert({ id: 'today', datetime: '2027-04-03', lineup: ['Z Mock Band'] }),
+      concert({ id: 'next', datetime: '2027-04-04', lineup: ['A Mock Band'] }),
+      concert({ id: 'unknown', datetime: null }),
+    ]);
+    const defaultPage = await (
+      await handleApi(request('/events?limit=1'), store)
+    ).json();
+    assert.equal(defaultPage.meta.total, 2);
+    assert.equal(defaultPage.data[0].id, 'today');
+    for (const [period, expected] of [
+      ['today', ['today']],
+      ['past', ['past']],
+      ['upcoming', ['today', 'next']],
+      ['all', ['past', 'today', 'next', 'unknown']],
+    ] as const) {
+      const response = await handleApi(
+        request(`/events?period=${period}`),
+        store
+      );
+      assert.deepEqual(
+        (await response.json()).data.map((event: { id: string }) => event.id),
+        expected
+      );
+    }
+    const range = await (
+      await handleApi(
+        request(
+          '/events?date_from=2027-04-01&date_to=2027-04-03&sort=date_desc'
+        ),
+        store
+      )
+    ).json();
+    assert.deepEqual(
+      range.data.map((event: { id: string }) => event.id),
+      ['today', 'past']
+    );
+    const bands = await (
+      await handleApi(request('/events?sort=band_asc&limit=1'), store)
+    ).json();
+    assert.equal(bands.data[0].id, 'next');
+    assert.equal(bands.meta.has_next, true);
+    const localToday = await (
+      await handleApi(request('/events?period=today&today=2027-04-04'), store)
+    ).json();
+    assert.deepEqual(
+      localToday.data.map((event: { id: string }) => event.id),
+      ['next']
+    );
+    for (const query of [
+      'date_from=2027-02-30',
+      'date_to=not-a-date',
+      'date_from=2027-05-01&date_to=2027-04-01',
+      'period=invalid',
+      'sort=title',
+    ]) {
+      assert.equal(
+        (await handleApi(request(`/events?${query}`), store)).status,
+        422
+      );
+    }
+  } finally {
+    store.close();
+  }
+});
+
+test('venue facets count every matching concert, omit empty venues, and ignore their own selection', async () => {
+  const store = new ConcertStore(':memory:');
+  try {
+    const first = concert({ id: 'first', genres: ['Metal'] });
+    const second = concert({
+      id: 'second',
+      genres: ['Metal'],
+      venue: { ...first.venue, name: 'Other Fictional Hall' },
+    });
+    store.upsertPublic([
+      first,
+      concert({ id: 'repeat', genres: ['Metal'] }),
+      second,
+      concert({ id: 'punk', genres: ['Punk'] }),
+    ]);
+    const quiet = { ...first.venue, name: 'Quiet Fictional Hall' };
+    store.upsertVenues([{ ...quiet, id: venueKey(quiet), event_count: 0 }]);
+    const selected = encodeURIComponent(venueKey(first.venue));
+    const response = await handleApi(
+      request(
+        `/events?city=Example+City&genre=Metal&venue=${selected}&limit=1`
+      ),
+      store
+    );
+    const result = await response.json();
+    assert.equal(result.meta.total, 2);
+    assert.equal(result.data.length, 1);
+    assert.deepEqual(
+      result.meta.venues.map((venue: { name: string; event_count: number }) => [
+        venue.name,
+        venue.event_count,
+      ]),
+      [
+        ['Fictional Room', 2],
+        ['Other Fictional Hall', 1],
+      ]
+    );
+    const filtered = await (
+      await handleApi(
+        request(`/events?artist=missing&venue=${selected}`),
+        store
+      )
+    ).json();
+    assert.deepEqual(filtered.meta.venues, []);
+  } finally {
+    store.close();
+  }
+});
+
+test('private date/venue filters and facets stay owner-scoped and directory ranges can include past shows', async (context) => {
+  context.mock.timers.enable({
+    apis: ['Date'],
+    now: new Date('2027-04-03T12:00:00Z'),
+  });
+  const store = new ConcertStore(':memory:');
+  try {
+    const owner = store.createUser('synthetic-filter-owner', 'synthetic-hash');
+    const stranger = store.createUser(
+      'synthetic-filter-stranger',
+      'synthetic-hash'
+    );
+    const archived = concert({ id: 'archived', datetime: '2020-04-03' });
+    store.importEvents(owner.id, {
+      events: [archived],
+      report: { total: 1, imported: 0, duplicates: 0, skipped: 0, issues: [] },
+    });
+    const cookie = sessionCookie(store, owner.id).split(';')[0];
+    const own = await (
+      await handleApi(
+        request(
+          '/me/events?period=past&sort=band_desc',
+          'GET',
+          undefined,
+          cookie
+        ),
+        store
+      )
+    ).json();
+    assert.equal(own.meta.total, 1);
+    assert.equal(own.meta.venues[0].event_count, 1);
+    const otherCookie = sessionCookie(store, stranger.id).split(';')[0];
+    const other = await (
+      await handleApi(
+        request('/me/events?period=past', 'GET', undefined, otherCookie),
+        store
+      )
+    ).json();
+    assert.equal(other.meta.total, 0);
+    assert.deepEqual(other.meta.venues, []);
+    store.upsertPublic([archived]);
+    for (const resource of ['artists', 'venues']) {
+      const directory = await (
+        await handleApi(
+          request(`/${resource}?date_from=2020-04-03&date_to=2020-04-03`),
+          store
+        )
+      ).json();
+      assert.ok(directory.meta.total > 0);
+      assert.equal(directory.meta.venues[0].event_count, 1);
+    }
+  } finally {
+    store.close();
+  }
+});
+
 test('similar concert lists honor the same city filter as discovery', async () => {
   const store = new ConcertStore(':memory:');
   try {
@@ -253,6 +434,346 @@ test('similar concert lists honor the same city filter as discovery', async () =
     const result = await response.json();
     assert.equal(result.meta.total, 1);
     assert.equal(result.data[0].id, 'synthetic-elsewhere');
+  } finally {
+    store.close();
+  }
+});
+
+test('personal statuses filter a past archive of saved shows and owned imports before pagination', async () => {
+  const store = new ConcertStore(':memory:');
+  try {
+    const owner = store.createUser('synthetic-archive-owner', 'synthetic-hash');
+    const other = store.createUser('synthetic-archive-other', 'synthetic-hash');
+    const cookie = sessionCookie(store, owner.id).split(';')[0];
+    store.upsertPublic([
+      concert({ id: 'past-went', datetime: '2000-04-03' }),
+      concert({ id: 'past-considered', datetime: '2001-04-03' }),
+      concert({ id: 'future-show', datetime: '2099-04-03' }),
+      concert({ id: 'today-show', datetime: '2027-01-15' }),
+      concert({
+        id: 'ongoing-show',
+        datetime: '2027-01-14',
+        end_datetime: '2027-01-17',
+      }),
+      concert({ id: 'undated-show', datetime: null }),
+      concert({ id: 'never-saved', datetime: '1999-04-03' }),
+    ]);
+    const history = {
+      events: [
+        concert({
+          id: 'synthetic-imported-history',
+          datetime: '2002-04-03',
+          import_details: {
+            sheet: 'Synthetic history',
+            row: 2,
+            fields: { Status: 'Original synthetic wording' },
+            status: 'Original synthetic wording',
+          },
+        }),
+        concert({ id: 'synthetic-future-import', datetime: '2099-06-03' }),
+      ],
+      report: { total: 2, imported: 0, duplicates: 0, skipped: 0, issues: [] },
+    };
+    store.importEvents(owner.id, history);
+    store.importEvents(other.id, history);
+    const privateId = store
+      .events(owner.id, true)
+      .find((event) => event.datetime === '2002-04-03')!.id;
+    for (const [id, status] of [
+      ['past-went', 'went'],
+      ['past-considered', 'interested'],
+      ['future-show', 'going'],
+      ['today-show', 'interested'],
+      ['ongoing-show', 'going'],
+      ['undated-show', 'interested'],
+    ]) {
+      const saved = await handleApi(
+        request(
+          '/me/saved',
+          'PUT',
+          {
+            type: 'event',
+            id,
+            saved: true,
+            status,
+          },
+          cookie
+        ),
+        store
+      );
+      assert.equal(saved.status, 200);
+      const item = (await saved.json()).data.find(
+        (value: { id: string }) => value.id === id
+      );
+      assert.equal(savedItemSchema.parse(item).status, status);
+    }
+    store.setSaved(other.id, 'event', 'past-went', true, 'not_going');
+    const first = await handleApi(
+      request(
+        '/me/saved-events?period=past&today=2027-01-15&limit=1',
+        'GET',
+        undefined,
+        cookie
+      ),
+      store
+    );
+    const archive = await first.json();
+    assert.equal(first.status, 200);
+    assert.equal(archive.meta.total, 3);
+    assert.equal(archive.meta.has_next, true);
+    assert.equal(archive.data[0].id, privateId);
+    const second = await handleApi(
+      request(
+        '/me/saved-events?period=past&today=2027-01-15&limit=1&page=2',
+        'GET',
+        undefined,
+        cookie
+      ),
+      store
+    );
+    assert.equal((await second.json()).data[0].id, 'past-considered');
+    const filtered = await handleApi(
+      request(
+        '/me/saved-events?period=past&today=2027-01-15&status=went',
+        'GET',
+        undefined,
+        cookie
+      ),
+      store
+    );
+    const went = await filtered.json();
+    assert.equal(went.meta.total, 1);
+    assert.equal(went.data[0].id, 'past-went');
+    const saved = await handleApi(
+      request('/me/saved-events', 'GET', undefined, cookie),
+      store
+    );
+    assert.equal((await saved.json()).meta.total, 6);
+    assert.equal(store.saves(other.id)[0].status, 'not_going');
+
+    await handleApi(
+      request(
+        '/me/saved',
+        'PUT',
+        {
+          type: 'event',
+          id: privateId,
+          saved: true,
+          status: 'went',
+        },
+        cookie
+      ),
+      store
+    );
+    const updated = await handleApi(
+      request(
+        '/me/saved-events?period=past&today=2027-01-15&status=went',
+        'GET',
+        undefined,
+        cookie
+      ),
+      store
+    );
+    assert.equal((await updated.json()).meta.total, 2);
+    assert.equal(
+      store.event(privateId, owner.id)?.import_details?.status,
+      'Original synthetic wording'
+    );
+    const exported = await handleApi(
+      request('/me/export', 'GET', undefined, cookie),
+      store
+    );
+    assert.equal(
+      (await exported.json()).saved.find(
+        (item: { id: string }) => item.id === privateId
+      ).status,
+      'went'
+    );
+    const publicFeed = await handleApi(
+      request('/events?period=past&today=2027-01-15'),
+      store
+    );
+    const publicData = await publicFeed.json();
+    assert.ok(
+      publicData.data.every(
+        (event: { status: string; is_private?: boolean }) =>
+          event.status === 'scheduled' && !event.is_private
+      )
+    );
+    assert.equal(
+      (await handleApi(request('/me/saved-events?period=past'), store)).status,
+      401
+    );
+  } finally {
+    store.close();
+  }
+});
+
+test('invalid or unauthorized attendance changes leave existing concert plans untouched', async () => {
+  const store = new ConcertStore(':memory:');
+  try {
+    const owner = store.createUser('synthetic-plan-owner', 'synthetic-hash');
+    const other = store.createUser('synthetic-plan-other', 'synthetic-hash');
+    const cookie = sessionCookie(store, owner.id).split(';')[0];
+    store.upsertPublic([concert()]);
+    store.setSaved(owner.id, 'event', 'synthetic-show', true, 'going');
+    store.importEvents(other.id, {
+      events: [concert()],
+      report: { total: 1, imported: 0, duplicates: 0, skipped: 0, issues: [] },
+    });
+    const privateId = store.events(other.id, true)[0].id;
+    for (const input of [
+      {
+        type: 'event',
+        id: 'synthetic-show',
+        saved: true,
+        status: 'invented-status',
+      },
+      { type: 'artist', id: 'mock support', saved: true, status: 'went' },
+      { type: 'event', id: 'synthetic-show', saved: false, status: 'went' },
+    ]) {
+      const response = await handleApi(
+        request('/me/saved', 'PUT', input, cookie),
+        store
+      );
+      assert.equal(response.status, 422);
+    }
+    const unavailable = await handleApi(
+      request(
+        '/me/saved',
+        'PUT',
+        {
+          type: 'event',
+          id: privateId,
+          saved: true,
+          status: 'went',
+        },
+        cookie
+      ),
+      store
+    );
+    assert.equal(unavailable.status, 404);
+    const crossOrigin = await handleApi(
+      request(
+        '/me/saved',
+        'PUT',
+        {
+          type: 'event',
+          id: 'synthetic-show',
+          saved: true,
+          status: 'went',
+        },
+        cookie,
+        'https://other.example.test'
+      ),
+      store
+    );
+    assert.equal(crossOrigin.status, 403);
+    assert.equal(
+      (
+        await handleApi(
+          request('/me/saved-events?status=unknown', 'GET', undefined, cookie),
+          store
+        )
+      ).status,
+      422
+    );
+    assert.throws(
+      () =>
+        store.db
+          .prepare('UPDATE saved SET status = ? WHERE user_id = ?')
+          .run('invented-status', owner.id),
+      /CHECK constraint failed/
+    );
+    assert.equal(store.saves(owner.id).length, 1);
+    assert.equal(store.saves(owner.id)[0].status, 'going');
+    assert.deepEqual(store.saves(other.id), []);
+  } finally {
+    store.close();
+  }
+});
+
+test('venue-location responses resolve public listings without exposing private import locations', async (context) => {
+  const previousEndpoint = process.env.NOMINATIM_ENDPOINT;
+  process.env.NOMINATIM_ENDPOINT = 'https://geocoder.example.test/search';
+  context.after(() => {
+    if (previousEndpoint === undefined) delete process.env.NOMINATIM_ENDPOINT;
+    else process.env.NOMINATIM_ENDPOINT = previousEndpoint;
+  });
+  const store = new ConcertStore(':memory:');
+  let lookups = 0;
+  context.mock.method(
+    globalThis,
+    'fetch',
+    async (input: string | URL | Request) => {
+      lookups++;
+      const url = new URL(String(input));
+      assert.equal(
+        url.searchParams.get('q'),
+        'Fictional Room, Example City, Test Country'
+      );
+      return Response.json([
+        {
+          name: 'Fictional Room',
+          lat: '12.5',
+          lon: '-45.5',
+          category: 'amenity',
+          address: { city: 'Example City', country: 'Test Country' },
+        },
+      ]);
+    }
+  );
+  try {
+    store.upsertPublic([
+      concert({
+        id: 'mapped-show',
+        venue: { ...concert().venue, latitude: '12.5', longitude: '-45.5' },
+      }),
+      concert({ id: 'unmapped-show' }),
+    ]);
+    const known = await handleApi(
+      request('/events/mapped-show/location'),
+      store
+    );
+    assert.equal(known.status, 200);
+    assert.deepEqual((await known.json()).data, {
+      latitude: 12.5,
+      longitude: -45.5,
+    });
+    assert.equal(lookups, 0);
+    const resolved = await handleApi(
+      request('/events/unmapped-show/location'),
+      store
+    );
+    assert.equal(resolved.status, 200);
+    assert.deepEqual((await resolved.json()).data, {
+      latitude: 12.5,
+      longitude: -45.5,
+    });
+    assert.equal(lookups, 1);
+    const owner = store.createUser('synthetic-map-owner', 'synthetic-hash');
+    store.importEvents(owner.id, {
+      events: [
+        concert({ venue: { ...concert().venue, name: 'Private Test Hall' } }),
+      ],
+      report: { total: 1, imported: 0, duplicates: 0, skipped: 0, issues: [] },
+    });
+    const id = store.events(owner.id, true)[0].id;
+    const cookie = sessionCookie(store, owner.id).split(';')[0];
+    assert.equal(
+      (
+        await handleApi(
+          request(`/events/${id}/location`, 'GET', undefined, cookie),
+          store
+        )
+      ).status,
+      403
+    );
+    assert.equal(
+      (await handleApi(request(`/events/${id}/location`), store)).status,
+      404
+    );
+    assert.equal(lookups, 1);
   } finally {
     store.close();
   }

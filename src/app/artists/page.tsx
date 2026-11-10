@@ -9,9 +9,9 @@ export default function ArtistsPage() {
     <DirectoryPage
       endpoint="/artists"
       schema={artistSchema}
-      eyebrow="THE PEOPLE MAKING THE NOISE"
-      title="Find your next favourite."
-      description="Artists from collected venue lineups. Follow them to hear when another show lands."
+      eyebrow="HEADLINERS AND SUPPORT ACTS"
+      title="Find a band."
+      description="Bands from the listings, including support acts. Follow them to hear about new gigs."
       render={(artists) => <ArtistList artists={artists} />}
     />
   );

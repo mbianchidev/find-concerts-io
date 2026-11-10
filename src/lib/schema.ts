@@ -9,7 +9,9 @@ import type {
   Tour,
   User,
   VenueData,
+  VenueCoordinates,
 } from '@/types';
+import { MAP_LATITUDE_LIMIT } from './maps';
 
 export function isWebUrl(value: string): boolean {
   try {
@@ -29,6 +31,40 @@ const link = z
   .max(2048)
   .refine((value) => !value || isWebUrl(value), 'Use an HTTP or HTTPS URL.');
 const fieldValue = z.union([z.string(), z.number(), z.boolean(), z.null()]);
+
+export const venueCoordinatesSchema: z.ZodType<VenueCoordinates> = z.object({
+  latitude: z.number().min(-MAP_LATITUDE_LIMIT).max(MAP_LATITUDE_LIMIT),
+  longitude: z.number().min(-180).max(180),
+});
+
+export const searchFiltersSchema = z
+  .object({
+    artist: z.string().max(250).optional(),
+    city: z.string().trim().max(250).optional(),
+    location: z.string().max(250).optional(),
+    date: z.iso.date().optional(),
+    date_from: z.iso.date().optional(),
+    date_to: z.iso.date().optional(),
+    period: z.enum(['all', 'upcoming', 'today', 'past']).optional(),
+    venue: z.string().min(1).max(1500).optional(),
+    genre: z.string().max(100).optional(),
+    sort: z.enum(['date_asc', 'date_desc', 'band_asc', 'band_desc']).optional(),
+  })
+  .refine(
+    (value) =>
+      !value.date_from || !value.date_to || value.date_from <= value.date_to,
+    {
+      message: 'The end date must be on or after the start date.',
+      path: ['date_to'],
+    }
+  );
+
+export const venueFacetSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  city: z.string(),
+  event_count: z.number().int().positive(),
+});
 
 export const eventSchema: z.ZodType<Event> = z.object({
   id: z.string().min(1).max(200),
@@ -50,6 +86,7 @@ export const eventSchema: z.ZodType<Event> = z.object({
   genres: z.array(z.string().max(100)).max(30),
   url: link,
   image_url: link.optional(),
+  image_kind: z.enum(['event', 'artist', 'venue']).optional(),
   source: z.object({
     id: z.string().max(100),
     name: z.string().max(300),
@@ -97,11 +134,29 @@ export const profileUpdateSchema = z
     'Choose at least one profile field to update.'
   );
 
-export const savedItemSchema: z.ZodType<SavedItem> = z.object({
-  id: z.string(),
-  type: z.enum(['event', 'artist', 'venue']),
-  addedAt: z.string(),
-});
+export const savedConcertStatusSchema = z.enum([
+  'interested',
+  'going',
+  'went',
+  'not_going',
+]);
+
+export const savedItemSchema: z.ZodType<SavedItem> = z
+  .object({
+    id: z.string(),
+    type: z.enum(['event', 'artist', 'venue']),
+    addedAt: z.string(),
+    status: savedConcertStatusSchema.optional(),
+  })
+  .refine((item) => item.type === 'event' || item.status === undefined, {
+    message: 'Attendance statuses only apply to concerts.',
+    path: ['status'],
+  })
+  .transform((item) =>
+    item.type === 'event'
+      ? { ...item, status: item.status ?? 'interested' }
+      : item
+  );
 
 export const notificationSchema: z.ZodType<Notification> = z.object({
   id: z.string(),

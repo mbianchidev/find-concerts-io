@@ -1,5 +1,8 @@
 import { AppError } from './errors';
 
+export const APP_USER_AGENT =
+  'FindConcertsIO/1.0 (+https://github.com/mbianchidev/find-concerts-io)';
+
 export async function readLimitedBody(
   body: ReadableStream<Uint8Array> | null,
   limit: number,

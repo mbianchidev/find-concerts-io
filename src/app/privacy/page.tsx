@@ -12,8 +12,8 @@ export default function PrivacyPage() {
   return (
     <main className="container" id="main" tabIndex={-1}>
       <PageIntro
-        eyebrow="SOFTWARE DEFAULTS / UPDATED 9 NOVEMBER 2026"
-        title="Your history stays yours."
+        eyebrow="SOFTWARE DEFAULTS / UPDATED 10 NOVEMBER 2026"
+        title="Privacy and data."
       >
         <p>
           This notice describes what this app does. The deployment operator must
@@ -31,6 +31,14 @@ export default function PrivacyPage() {
           linked to your account. Email is optional and is enabled for
           notifications only after ownership is confirmed. No payment
           information or social-login data is collected.
+        </p>
+        <p>
+          Interested, Going, Went, and Didn&apos;t go are private saved-show
+          statuses. Your archive also includes your past private imports. Dates
+          never imply attendance, and original workbook fields stay unchanged.
+          Statuses are included in your account export and removed when you
+          remove the bookmark or delete your account, never shared with concert
+          or calendar providers.
         </p>
         <h2 style={{ marginTop: 25 }}>Cookies and browser storage</h2>
         <p>
@@ -69,6 +77,15 @@ export default function PrivacyPage() {
           credentials and explicitly initiated searches. Provider hosting
           locations and international-transfer safeguards depend on the operator
           configuration.
+        </p>
+        <p className="muted-note">
+          Embedded venue maps load only when you choose Show venue map. External
+          map links also connect to OpenStreetMap when followed. OpenStreetMap
+          then receives your IP address and normal browser request information.
+          Missing public venue coordinates are looked up through this server
+          using the public venue name, city, and country. Results are cached for
+          30 days, or one day when no unique match is found. Private import
+          locations are never looked up, embedded, or pre-filled into map links.
         </p>
         <h2 style={{ marginTop: 25 }}>Control, retention, and security</h2>
         <p>

@@ -6,6 +6,7 @@ import type {
   Event,
   ImportReport,
   Notification,
+  SavedConcertStatus,
   SavedItem,
   User,
   VenueData,
@@ -13,7 +14,11 @@ import type {
 import { artistKey, collectVenues, isUpcoming, venueKey } from '@/lib/concerts';
 import type { ParsedImport } from './imports';
 import { AppError } from './errors';
-import { eventSchema, venueSchema } from '@/lib/schema';
+import {
+  eventSchema,
+  savedConcertStatusSchema,
+  venueSchema,
+} from '@/lib/schema';
 
 function comparable(event: Event): string {
   const { id: _id, popularity: _popularity, source, ...rest } = event;
@@ -30,7 +35,7 @@ export class ConcertStore {
     this.db = new DatabaseSync(path);
     if (path !== ':memory:') chmodSync(path, 0o600);
     const version = this.db.prepare('PRAGMA user_version').get();
-    if (!version || Number(version.user_version) > 3) {
+    if (!version || Number(version.user_version) > 4) {
       this.db.close();
       throw new Error(
         'The database schema is newer than this app. Use a matching app version; do not reset the database.'
@@ -133,7 +138,18 @@ export class ConcertStore {
           .map((row) => eventSchema.parse(JSON.parse(String(row.payload))));
         for (const venue of collectVenues(events)) this.persistVenue(venue);
       }
-      this.db.exec('PRAGMA user_version = 3');
+      const savedColumns = new Set(
+        this.db
+          .prepare('PRAGMA table_info(saved)')
+          .all()
+          .map((row) => String(row.name))
+      );
+      if (!savedColumns.has('status'))
+        this.db.exec(`
+          ALTER TABLE saved ADD COLUMN status TEXT NOT NULL DEFAULT 'interested'
+            CHECK (status IN ('interested', 'going', 'went', 'not_going'));
+        `);
+      this.db.exec('PRAGMA user_version = 4');
     });
   }
 
@@ -312,7 +328,7 @@ export class ConcertStore {
     return this.transaction(() => {
       let added = 0;
       for (const input of events) {
-        const event = eventSchema.parse(input);
+        let event = eventSchema.parse(input);
         if (event.is_private || event.import_details)
           throw new AppError(
             422,
@@ -320,7 +336,7 @@ export class ConcertStore {
             'Private workbook records cannot enter the public catalogue.'
           );
         const existing = this.db
-          .prepare('SELECT owner_id FROM events WHERE id = ?')
+          .prepare('SELECT owner_id, payload FROM events WHERE id = ?')
           .get(event.id);
         if (existing && existing.owner_id !== null)
           throw new AppError(
@@ -328,6 +344,16 @@ export class ConcertStore {
             'EVENT_CONFLICT',
             'A public event cannot replace a private record.'
           );
+        if (existing && !event.image_url) {
+          const previous = eventSchema.parse(
+            JSON.parse(String(existing.payload))
+          );
+          event = {
+            ...event,
+            image_url: previous.image_url,
+            image_kind: previous.image_kind,
+          };
+        }
         this.db
           .prepare(
             `
@@ -431,7 +457,7 @@ export class ConcertStore {
   saves(userId: string): SavedItem[] {
     return this.db
       .prepare(
-        'SELECT entity_id, kind, added_at FROM saved WHERE user_id = ? ORDER BY added_at DESC'
+        'SELECT entity_id, kind, added_at, status FROM saved WHERE user_id = ? ORDER BY added_at DESC'
       )
       .all(userId)
       .map((row) => ({
@@ -443,6 +469,9 @@ export class ConcertStore {
               ? 'venue'
               : 'event',
         addedAt: String(row.added_at),
+        ...(row.kind === 'event'
+          ? { status: savedConcertStatusSchema.parse(row.status) }
+          : {}),
       }));
   }
 
@@ -450,14 +479,23 @@ export class ConcertStore {
     userId: string,
     type: SavedItem['type'],
     id: string,
-    enabled: boolean
+    enabled: boolean,
+    status?: SavedConcertStatus
   ): void {
     if (enabled) {
       this.db
         .prepare(
-          'INSERT OR IGNORE INTO saved (user_id, kind, entity_id, added_at) VALUES (?, ?, ?, ?)'
+          `INSERT INTO saved (user_id, kind, entity_id, added_at, status) VALUES (?, ?, ?, ?, ?)
+           ON CONFLICT(user_id, kind, entity_id) DO UPDATE SET status = COALESCE(?, saved.status)`
         )
-        .run(userId, type, id, new Date().toISOString());
+        .run(
+          userId,
+          type,
+          id,
+          new Date().toISOString(),
+          status ?? 'interested',
+          status ?? null
+        );
       if (type !== 'event') {
         for (const event of this.events(null)) {
           if (

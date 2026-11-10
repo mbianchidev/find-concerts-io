@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useApp } from '@/components/AppProvider';
 import EventList from '@/components/EventList';
+import ConcertSort from '@/components/ConcertSort';
 import Icon from '@/components/Icon';
 import SearchBar from '@/components/SearchBar';
 import { AccountGate, ErrorState, PageIntro, Pager } from '@/components/Ui';
@@ -16,6 +17,7 @@ import {
   type WorkbookPreview,
 } from '@/lib/schema';
 import type { ImportReport, SearchFilters } from '@/types';
+import { localCalendarDate } from '@/lib/utils';
 
 type Column = Exclude<
   keyof WorkbookMapping,
@@ -46,7 +48,11 @@ export default function ImportPage() {
     0;
   const [filters, setFilters] = useState<SearchFilters>({});
   const [page, setPage] = useState(1);
-  const params = new URLSearchParams({ page: String(page), limit: '12' });
+  const params = new URLSearchParams({
+    page: String(page),
+    limit: '12',
+    today: localCalendarDate(),
+  });
   Object.entries(filters).forEach(([name, value]) => {
     if (typeof value === 'string' && value) params.set(name, value);
   });
@@ -100,12 +106,12 @@ export default function ImportPage() {
   return (
     <main className="container" id="main" tabIndex={-1}>
       <PageIntro
-        eyebrow="YOUR CONCERT HISTORY, NOT PUBLIC DATA"
-        title="Bring your nights with you."
+        eyebrow="PRIVATE CONCERT HISTORY"
+        title="Import your gig history."
       >
         <p>
-          Inspect your spreadsheet, choose its columns, and keep every relevant
-          field in your private account.
+          Upload an XLSX spreadsheet, check its columns, then import it. Your
+          imported concerts aren&apos;t public.
         </p>
       </PageIntro>
       {!user ? (
@@ -366,11 +372,10 @@ export default function ImportPage() {
                   <Icon name="lock" />
                   ACCOUNT-PRIVATE
                 </p>
-                <h2 style={{ marginTop: 16 }}>Your history stays yours.</h2>
+                <h2 style={{ marginTop: 16 }}>Private concert history.</h2>
                 <p>
-                  Imports never enter the public catalogue, public artist pages,
-                  search engines, or deployment artifacts. They are stored in
-                  the server database under your account.
+                  Imported gigs stay in your account. They don&apos;t appear in
+                  public listings or search results.
                 </p>
                 <p className="muted-note">
                   Repeated imports skip exact duplicates. If the same concert
@@ -400,12 +405,26 @@ export default function ImportPage() {
             <SearchBar
               citiesPath="/me/cities"
               scope={user.id}
+              initial={filters}
+              defaultPeriod="all"
+              venues={concerts.data?.meta.venues}
+              venuesPending={concerts.isFetching}
               onSearch={(next) => {
-                setFilters(next);
+                setFilters({
+                  ...next,
+                  sort: Object.keys(next).length ? filters.sort : undefined,
+                });
                 setPage(1);
               }}
             />
             <div className="directory-results">
+              <ConcertSort
+                value={filters.sort}
+                onChange={(sort) => {
+                  setFilters((current) => ({ ...current, sort }));
+                  setPage(1);
+                }}
+              />
               <ErrorState
                 error={concerts.error}
                 retry={() => void concerts.refetch()}

@@ -12,11 +12,28 @@ structured data, sitemaps, test fixtures, builds, or provider searches.
 No private workbook file is retained after upload. Server-console tools must
 only process owner-provided paths and must not publish the source file.
 
+Personal attendance statuses are account-private saved metadata, not public
+concert fields. The archive combines owned past imports and saved shows; it does
+not infer attendance or rewrite workbook fields. Guest statuses remain in browser
+storage. Statuses are included in the owner's account export and removed with
+their bookmark or account, never sent to calendar, venue, or music providers.
+
 Display name, location, and bio are optional account-private profile fields.
 They are included only in the owner's session/profile/export responses and
 removed on account deletion, never sent to venue or music-provider searches.
 Password changes verify the existing password, revoke old sessions, and rotate
 the current browser's session without changing concert data.
+
+Concert-detail maps are opt-in per view. No OpenStreetMap iframe or geocoding
+request is loaded before the user chooses **Show venue map**. Following an external
+map link is a separate action that also connects to OpenStreetMap. When a map opens,
+OpenStreetMap receives the browser's IP address and normal request information;
+the iframe omits the app page as its referrer. Missing coordinates are resolved
+server-side from public venue names, cities, and countries only. Successful
+matches are cached for 30 days, while missing or ambiguous matches are cached for
+one day. Private imports never trigger lookups or embeds, and their locations are
+not pre-filled in external map links. The operator must disclose the selected
+geocoder and review the [OSMF privacy policy](https://osmfoundation.org/wiki/Privacy_Policy).
 
 The essential session cookie expires after 30 days and is revoked on sign-out.
 Guest saves and opt-in preferences stay in browser storage. The offline worker

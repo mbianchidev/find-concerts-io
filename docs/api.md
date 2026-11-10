@@ -2,7 +2,7 @@
 
 Base path: `/api/v1`. All responses are JSON except calendar and account-export
 downloads. Single resources use `{ data }`; lists use
-`{ data, meta: { total, page, limit, has_next } }`. Pagination starts at 1 and
+`{ data, meta: { total, page, limit, has_next, venues? } }`. Pagination starts at 1 and
 accepts limits up to 100. Errors use
 `{ error: { code, message, request_id, details? } }`. Responses carry a matching
 `X-Request-ID` and are never publicly cached by the browser.
@@ -20,14 +20,16 @@ City options include persistent public venues, even with no upcoming concerts.
 | `/events/:id`                         | GET               | Public or owner-authorized detail                                                       |
 | `/events/:id/calendar`                | GET               | Owner-aware `.ics` download                                                             |
 | `/events/:id/similar`                 | GET               | Similar upcoming public concerts                                                        |
+| `/events/:id/location`                | GET               | Listing coordinates or a cached public venue lookup; private imports are rejected       |
 | `/artists`, `/tours`                  | GET               | Derived public directories                                                              |
 | `/venues`                             | GET               | Persistent public venues and filtered upcoming counts; `saved=true` requires an account |
 | `/cities`                             | GET               | Public city facet; never includes private import locations                              |
 | `/me/cities`                          | GET               | Public cities plus the signed-in owner's explicitly mapped private cities               |
 | `/sources`                            | GET               | Venue collection status and errors                                                      |
-| `/me/events`, `/me/saved-events`      | GET               | Private history / saved public and private concerts                                     |
+| `/me/events`                          | GET               | Owned private concert imports                                                           |
+| `/me/saved-events`                    | GET               | Saved public/private concerts; `period=past` also includes owned past imports           |
 | `/me/recommendations`                 | GET               | Account-specific public recommendations                                                 |
-| `/me/saved`                           | GET, PUT          | `{ type: event/artist/venue, id, saved: boolean }`                                      |
+| `/me/saved`                           | GET, PUT          | `{ type: event/artist/venue, id, saved: boolean, status? }`                             |
 | `/imports/preview`                    | POST              | Owner-only multipart `file`                                                             |
 | `/imports`                            | POST, GET         | Multipart `file` and JSON `mappings`; recent reports                                    |
 | `/notifications`                      | GET, PATCH        | Inbox; mark one `{ id }` or all `{}` as read                                            |
@@ -44,7 +46,8 @@ City options include persistent public venues, even with no upcoming concerts.
 | `/integrations/spotify/artists`       | GET               | Authenticated explicit artist search `?q=`                                              |
 | `/integrations/ticketmaster/searches` | POST              | Authenticated `{ q, city?, genre? }`                                                    |
 
-List filters: `artist`, `city`, `location`, `date=YYYY-MM-DD`, `genre`, and where applicable
+List filters: `artist`, `city`, `location`, `date=YYYY-MM-DD`, `date_from`,
+`date_to`, `period`, `venue`, `sort`, `genre`, and where applicable
 `past=true`, `saved=true`, or `view=trending`. The public event endpoint accepts
 at most 30 comma-separated `ids` for guest shortlists and never resolves private IDs.
 
@@ -53,16 +56,88 @@ at most 30 comma-separated `ids` for guest shortlists and never resolves private
 with other filters on discovery, recommendations, similar concerts, saved/private
 concerts, and directories. `location` remains the broader venue/city/country search.
 
+The UI combines city suggestions and free-text location search into one **Where**
+field. Choosing a known city sends `city`; other place text sends `location`.
+
+`date_from` and `date_to` are inclusive venue-local calendar dates and can be used
+independently. Multi-day shows match when their date span overlaps the range.
+Invalid dates and reversed ranges return 422. The legacy `date` filter still
+matches a show's start date.
+
+`period=upcoming` includes today and future dates, excluding cancelled/postponed
+shows. `today` matches concerts running on the reference day; `past` matches
+concerts that ended before it. `all` also includes unconfirmed dates unless a
+date range excludes them. Public discovery/directories default to upcoming;
+private history and saved shows default to all. Explicit dates/ranges imply all
+unless a period is supplied, so historical ranges work without another flag.
+The browser sends its local day as `today=YYYY-MM-DD`; API callers that omit it
+use the current UTC day. Upcoming comparisons retain explicit timestamp offsets.
+Recommendations and trending remain upcoming-only.
+
+Concert ordering accepts `sort=date_asc`, `date_desc`, `band_asc`, or `band_desc`.
+Date order is chronological, with unconfirmed dates last in both directions.
+Band order uses the headliner, falling back to the title. Sorting happens before
+pagination. Discovery defaults to soonest first; recommendations/trending retain
+their ranking unless an explicit sort is requested.
+
+Concert and directory lists return `meta.venues` as
+`[{ id, name, city, event_count }]`. These facets count the complete matching set,
+not the current page, and omit zero-count venues. The selected `venue` facet is
+excluded from its own counts so users can switch venues without clearing it.
+Other filters, including date period/range, city, artist, and genre, remain active.
+Private facets are owner-scoped. The independent venue directory still retains
+followable venues without concerts.
+
+Saved concert entries include a private `status`: `interested`, `going`, `went`,
+or `not_going`. Existing saves default to `interested`. `PUT /me/saved` accepts
+`status` only with `type=event` and `saved=true`; it updates an existing bookmark
+without changing `addedAt`, or saves the concert with that status. Omitting status
+preserves an existing choice. Follows and removals must not include status.
+Unknown values return 422, and unavailable or unauthorized save targets return 404.
+
+`GET /me/saved-events?period=past&status=went&today=YYYY-MM-DD` selects the archive.
+The `status` filter is optional. This view combines saved concerts and all owned
+private imports, deduplicates them, filters date/status before pagination, and
+defaults to `sort=date_desc`. Unbookmarked imports have no personal status and
+appear only with all statuses until marked. They keep their original workbook
+fields. Normal saved lists remain all saved concerts, with date-ascending order.
+The public concert's `status` field remains its scheduled/cancelled state; personal
+statuses appear only in authenticated saved responses and account exports.
+
 Venue records may include `genres`, `source_url`, and an optional venue-website `url`.
 Their stable IDs also validate follows when `event_count` is zero. City, location,
 and genre filters can return these empty venues; artist/date filters require a
-matching upcoming gig. Counts describe collected matching shows, not a claim that
+matching gig in the chosen period/range. Counts describe collected matching shows, not a claim that
 the venue has no other concerts.
 
 Event sources may include `genre_basis: "calendar"` or `"description"`.
 Specialist-calendar categories are not independently verified artist subgenres.
 An explicit concert date without a published start time uses `date_only: true`;
 no local start time or UTC offset is invented.
+
+Optional `image_kind: "event" | "artist" | "venue"` distinguishes concert/tour
+artwork, reused headliner imagery, and a venue-photo fallback. Photos are public
+source URLs, not uploaded copies or fabricated artwork.
+
+`GET /events/:id/location` returns
+`{ data: { latitude: number, longitude: number } }`. Known listing coordinates
+need no provider request. Otherwise the endpoint matches the public venue against
+Nominatim by name, city, country, and place category. It never substitutes a city
+centre or selects one of several different matching places.
+
+Location lookups are triggered by the concert-detail **Show venue map** button,
+not by page rendering. The provider limit is one request per second across the
+application, including separate processes sharing SQLite. Positive results are
+cached for 30 days; missing and ambiguous matches for one day. Upstream
+`Retry-After` cooldowns are respected. Cached results do not consume the provider
+quota. The endpoint does not accept arbitrary location search text.
+
+Missing/incomplete/ambiguous venue information returns 422, disabled geocoding
+returns 503, and provider failures return 502 or 503. Requests for an owner's
+private import return 403 without contacting the provider; unauthorized private
+IDs still return 404. `NOMINATIM_ENDPOINT` selects a compatible service, with an
+empty value disabling new lookups. The [Nominatim usage policy](https://operations.osmfoundation.org/policies/nominatim/)
+applies when using the default public service.
 
 Mutations require an `Origin` equal to `APP_ORIGIN`. JSON mutations require
 `application/json`; imports require multipart forms. Session cookies are

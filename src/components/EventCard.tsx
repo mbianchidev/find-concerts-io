@@ -2,18 +2,25 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import type { Event } from '@/types';
+import type { Event, SavedConcertStatus } from '@/types';
 import { formatDate, formatTime } from '@/lib/utils';
 import { useApp } from './AppProvider';
 import Icon from './Icon';
+import ConcertStatusSelect from './ConcertStatusSelect';
+
+interface EventCardProps {
+  event: Event;
+  className?: string;
+  savedView?: boolean;
+  onStatusSaved?: (status: SavedConcertStatus) => void;
+}
 
 export default function EventCard({
   event,
   className = '',
-}: {
-  event: Event;
-  className?: string;
-}) {
+  savedView = false,
+  onStatusSaved,
+}: EventCardProps) {
   const { saves, toggleSaved, ready, pending } = useApp();
   const saved = saves.some(
     (item) => item.type === 'event' && item.id === event.id
@@ -39,7 +46,9 @@ export default function EventCard({
           </div>
         )}
         <span className="date-ticket">
-          {event.datetime ? formatDate(event.datetime, true) : 'DATE TBA'}
+          {event.datetime
+            ? formatDate(event.datetime, true, savedView)
+            : 'DATE TBA'}
         </span>
         <button
           className={`save-button ${saved ? 'is-saved' : ''}`}
@@ -89,6 +98,13 @@ export default function EventCard({
           )}
         </p>
         {event.reason && <p className="muted-note">{event.reason}</p>}
+        {savedView && (
+          <ConcertStatusSelect
+            eventId={event.id}
+            title={event.title}
+            onStatusSaved={onStatusSaved}
+          />
+        )}
         <div className="event-card-footer">
           <span>
             {event.is_private ? 'Your concert history' : event.source.name}

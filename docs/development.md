@@ -67,10 +67,66 @@ published start times remain all-day records; unknown coordinates remain unknown
 Source errors and changed layouts are explicit. Failures do not erase existing
 records, and known cancellations/postponements refresh previously collected gigs.
 
+Collection also enriches missing tour/band photos, with official venue imagery
+as a fallback. Only origins in `src/lib/image-sources.json` are eligible for
+photo-page requests; supported image hosts in that same file configure Next Image.
+Add a host only after checking its public markup and robots policy. Requests
+retain the same delays, redirect restrictions, and origin-level access stops as
+concert collection. Up to 80 additional photo pages are read per run; cached
+lookups let subsequent runs progress without repeatedly downloading known photos.
+New imagery appears after the next collection, or an explicitly queued refresh.
+
+Image optimization allows up to three redirects so existing Squarespace URLs
+can reach their CDN. Private IPs stay blocked at every hop. This fixes rendering
+without re-scraping or rewriting saved concert records.
+
+Cheerio's `encoding-sniffer` dependency is overridden to the compatible 1.x API,
+which uses `@exodus/bytes` instead of deprecated `whatwg-encoding`. UTF-8,
+Windows-1252, and stream-decoding regressions cover the override. Revisit it when
+Cheerio adopts the updated dependency itself.
+
 Schema version 3 adds a public venue catalogue and backfills only public events.
 It preserves accounts, sessions, follows, and private imports. Stop both services
 before restoring a protected pre-upgrade backup with a compatible app version.
 Do not reset the database or edit its schema-version marker to force a downgrade.
+
+Schema version 4 adds validated saved-concert attendance statuses in a transaction.
+Existing concert saves become Interested without changing accounts, sessions,
+bookmark timestamps, follows, or imported fields. Back up before upgrading and
+restart both web and worker processes so they use the same schema-aware code.
+An older app refuses a v4 database; use the protected pre-upgrade backup if a
+downgrade is necessary.
+
+## Venue maps
+
+Concert details include OpenStreetMap venue pins with native pan and + / - zoom
+controls. Embedded maps and server lookups start only after **Show venue map** is
+selected; external map links also connect to OpenStreetMap when followed.
+Existing listing coordinates are used first. Missing public locations
+require a unique matching venue name, city, and country; no city-centre fallback
+is used. Private imports do not trigger lookups, embeds, or pre-filled map links.
+
+The default geocoder is Nominatim. Its
+[usage policy](https://operations.osmfoundation.org/policies/nominatim/) requires
+moderate, end-user-triggered use, an identifying User-Agent, attribution, caching,
+and at most one request per second across the whole app. The SQLite-backed limiter
+shares that limit across users and processes. Matches are cached for 30 days;
+missing or ambiguous results for one day. There is no autocomplete or background
+bulk geocoding. The map shows OpenStreetMap attribution and sends no private
+workbook or profile data.
+
+Set `NOMINATIM_ENDPOINT` to a compatible search endpoint to switch providers without
+a software update. Set it to an empty value to disable geocoding; maps with known
+listing coordinates still work. Restart the app after changing server settings.
+Use a self-hosted or commercial service if public-service usage exceeds the
+policy's limits. Embedded tiles are not added to the app's offline cache.
+
+## Brand assets
+
+`public/mark.svg` is the source artwork for the header and favicon. Home-screen
+and notification icons use its 180x180 PNG counterpart,
+`public/apple-touch-icon.png`. Keep both assets in sync when changing the mark,
+and bump the public-shell cache version in `public/sw.js`.
 
 ## Verification
 
