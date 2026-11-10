@@ -22,11 +22,7 @@ export default function VenueCard({ venue }: { venue: VenueData }) {
     <article className="entity-card venue-card">
       <div className="venue-illustration" aria-hidden="true">
         <Icon name="location" width="52" height="52" />
-        <span>
-          THE ROOMS
-          <br />
-          THAT MATTER.
-        </span>
+        <span>VENUE</span>
       </div>
       <div className="entity-content">
         <p className="eyebrow">

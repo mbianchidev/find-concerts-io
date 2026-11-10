@@ -64,20 +64,19 @@ function Discovery() {
           <div>
             <p className="eyebrow">
               <span className="status-dot" />
-              LIVE MUSIC. REAL PLANS.
+              METAL / HARDCORE / ROCK / PUNK
             </p>
             <h1 id="discovery-title">
               Find your
               <br />
-              next <span>front row.</span>
+              next <span>gig.</span>
             </h1>
             <p className="hero-copy">
-              The heavy riffs. The small rooms. The nights you talk about for
-              years. Find a show worth getting out for.
+              Stage diving or 2stepping in the pit, you choose.
             </p>
             <div className="hero-links">
               <a className="show-link" href="#shows">
-                Explore the listings <Icon name="arrow" />
+                Browse gigs <Icon name="arrow" />
               </a>
               <span className="hero-note">Venue and specialist calendars</span>
             </div>
@@ -92,7 +91,7 @@ function Discovery() {
                 priority
               />
               <div className="pass-caption">
-                <small>LESS SCROLLING. MORE SHOWS.</small>SEE YOU
+                SEE YOU
                 <br />
                 IN THE PIT.
               </div>
@@ -100,7 +99,7 @@ function Discovery() {
             <div className="pass-spine">
               <span>METAL / HARDCORE / ROCK / PUNK</span>
             </div>
-            <span className="pass-sticker">YOUR NEXT NIGHT STARTS HERE</span>
+            <span className="pass-sticker">BRING EARPLUGS.</span>
           </div>
         </section>
         <SearchBar
@@ -132,23 +131,21 @@ function Discovery() {
             <div>
               <h2 id="shows-title">
                 {view === 'for-you'
-                  ? 'A little more your kind of loud.'
+                  ? 'Gigs you might like.'
                   : view === 'trending'
-                    ? filters.city || filters.location
-                      ? `Trending around ${filters.city || filters.location}.`
-                      : "On the scene's radar."
+                    ? 'Gigs people saved.'
                     : filters.period === 'past'
-                      ? 'Good nights gone by.'
+                      ? 'Past gigs.'
                       : filters.period === 'today'
-                        ? 'Tonight starts here.'
-                        : 'Find your next show.'}
+                        ? 'Gigs today.'
+                        : 'Gigs.'}
               </h2>
               <p className="result-count" role="status">
                 {results.data
                   ? `${results.data.meta.total} ${results.data.meta.total === 1 ? 'show' : 'shows'}${view === 'trending' ? (filters.sort ? ' with account saves' : ' ranked by real account saves') : ' from venue and specialist calendars'}`
                   : view === 'for-you' && !user
-                    ? 'Personal recommendations, without the noise.'
-                    : 'Finding the next good night...'}
+                    ? 'Sign in for gig recommendations.'
+                    : 'Loading gigs...'}
               </p>
             </div>
             <div className="listing-controls">
@@ -193,8 +190,8 @@ function Discovery() {
           </div>
           {view === 'for-you' && !user ? (
             <AccountGate>
-              Save a few shows or follow an artist, and get recommendations
-              based on your scene.
+              Sign in to get recommendations from your saved gigs and the bands
+              and venues you follow.
             </AccountGate>
           ) : (
             <>
@@ -207,7 +204,7 @@ function Discovery() {
                 loading={results.isPending}
                 emptyMessage={
                   view === 'for-you'
-                    ? 'Save a show or follow an artist to help us find your next one.'
+                    ? 'Save a gig or follow a band or venue to get recommendations.'
                     : view === 'trending'
                       ? 'No upcoming shows have account saves in this area yet. Try All shows to browse every listing.'
                       : undefined
@@ -227,19 +224,19 @@ function Discovery() {
         {!user && (
           <section className="scene-banner">
             <div>
-              <h2>Your scene. All in one place.</h2>
+              <h2>Save your gigs.</h2>
               <p>
-                Save the shows. Follow the bands. Bring your concert history
-                along.
+                Sign in to sync saves, follow bands and venues, or import your
+                concert spreadsheet.
               </p>
             </div>
             <Link className="button" href="/account">
-              Make it yours <Icon name="arrow" />
+              Sign in <Icon name="arrow" />
             </Link>
           </section>
         )}
         <div className="source-strip">
-          <span>SOURCED LISTINGS. ALWAYS CHECK WITH THE VENUE.</span>
+          <span>CHECK WITH THE VENUE BEFORE YOU BOOK.</span>
           {sources.data?.map((source) => (
             <a
               key={source.id}

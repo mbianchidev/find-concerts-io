@@ -106,12 +106,12 @@ export default function ImportPage() {
   return (
     <main className="container" id="main" tabIndex={-1}>
       <PageIntro
-        eyebrow="YOUR CONCERT HISTORY, NOT PUBLIC DATA"
-        title="Bring your nights with you."
+        eyebrow="PRIVATE CONCERT HISTORY"
+        title="Import your gig history."
       >
         <p>
-          Inspect your spreadsheet, choose its columns, and keep every relevant
-          field in your private account.
+          Upload an XLSX spreadsheet, check its columns, then import it. Your
+          imported concerts aren&apos;t public.
         </p>
       </PageIntro>
       {!user ? (
@@ -372,11 +372,10 @@ export default function ImportPage() {
                   <Icon name="lock" />
                   ACCOUNT-PRIVATE
                 </p>
-                <h2 style={{ marginTop: 16 }}>Your history stays yours.</h2>
+                <h2 style={{ marginTop: 16 }}>Private concert history.</h2>
                 <p>
-                  Imports never enter the public catalogue, public artist pages,
-                  search engines, or deployment artifacts. They are stored in
-                  the server database under your account.
+                  Imported gigs stay in your account. They don&apos;t appear in
+                  public listings or search results.
                 </p>
                 <p className="muted-note">
                   Repeated imports skip exact duplicates. If the same concert

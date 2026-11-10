@@ -9,9 +9,9 @@ export default function ToursPage() {
     <DirectoryPage
       endpoint="/tours"
       schema={tourSchema}
-      eyebrow="ANOTHER CITY. SAME FRONT ROW."
-      title="Catch the next date."
-      description="Collected dates grouped by artist. These are verified listings, not invented official tour schedules."
+      eyebrow="COLLECTED DATES"
+      title="Tour dates."
+      description="We group gigs by band. Check each venue for tickets and times."
       render={(tours) => <TourList tours={tours} />}
     />
   );

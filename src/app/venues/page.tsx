@@ -9,9 +9,9 @@ export default function VenuesPage() {
     <DirectoryPage
       endpoint="/venues"
       schema={venueSchema}
-      eyebrow="INDEPENDENT ROOMS. UNFORGETTABLE NIGHTS."
-      title="Know where to go."
-      description="Explore the venues behind the listings. Follow a room and keep its new shows on your radar."
+      eyebrow="VENUES"
+      title="Find a venue."
+      description="Venues from the listings. You can follow one even when it has no upcoming gigs."
       render={(venues) => <VenueList venues={venues} />}
     />
   );

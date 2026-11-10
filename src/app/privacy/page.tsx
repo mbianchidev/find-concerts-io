@@ -13,7 +13,7 @@ export default function PrivacyPage() {
     <main className="container" id="main" tabIndex={-1}>
       <PageIntro
         eyebrow="SOFTWARE DEFAULTS / UPDATED 9 NOVEMBER 2026"
-        title="Your history stays yours."
+        title="Privacy and data."
       >
         <p>
           This notice describes what this app does. The deployment operator must

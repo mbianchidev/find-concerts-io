@@ -31,7 +31,12 @@ test('discovery searches support acts, venues, genres, and restores clear filter
 }) => {
   await page.goto('/');
   await expect(
-    page.getByRole('heading', { name: 'Find your next front row.' })
+    page.getByRole('heading', { name: 'Find your next gig.' })
+  ).toBeVisible();
+  await expect(
+    page.getByText('Stage diving or 2stepping in the pit, you choose.', {
+      exact: true,
+    })
   ).toBeVisible();
   await page.getByLabel('Who', { exact: true }).fill('Mock Support');
   await page.getByLabel('Where', { exact: true }).fill('Fictional Room');
@@ -382,7 +387,7 @@ test('synthetic XLSX imports stay private, persist, and never leak to public pag
     .getByRole('button', { name: 'Log out', exact: true })
     .click();
   await expect(
-    page.getByRole('heading', { name: 'Make room for good nights.' })
+    page.getByRole('heading', { name: 'Your account.' })
   ).toBeVisible();
   await page.goBack();
   await expect(

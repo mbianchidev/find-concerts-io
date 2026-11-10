@@ -112,7 +112,7 @@ export function Pager({
 
 export function AccountGate({ children }: { children: React.ReactNode }) {
   return (
-    <EmptyState title="Make it your scene.">
+    <EmptyState title="Sign in to continue.">
       <p>{children}</p>
       <Link className="button" href="/account">
         Sign in or create an account <Icon name="arrow" />

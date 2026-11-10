@@ -12,11 +12,8 @@ export default function TourList({
   if (loading) return <LoadingGrid />;
   if (!tours.length)
     return (
-      <EmptyState title="More dates, more chances.">
-        <p>
-          Artists with at least two collected upcoming dates appear here. No
-          tour schedules are invented.
-        </p>
+      <EmptyState title="No tours match these filters.">
+        <p>At least two gigs by the same band need to match these filters.</p>
       </EmptyState>
     );
   return (

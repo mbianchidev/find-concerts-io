@@ -53,13 +53,13 @@ export default function IntegrationsPage() {
   return (
     <main className="container" id="main" tabIndex={-1}>
       <PageIntro
-        eyebrow="OPTIONAL CONNECTIONS / NO HIDDEN FALLBACKS"
-        title="Go a little further."
+        eyebrow="OPTIONAL INTEGRATIONS"
+        title="Spotify and Ticketmaster."
       >
         <p>
-          Search artist metadata or additional event listings when the server
-          has provider credentials. Searches are explicit; private workbooks are
-          never sent to these services.
+          Search bands on Spotify or gigs on Ticketmaster when the server has
+          API credentials. We don&apos;t send your concert spreadsheet to either
+          service.
         </p>
       </PageIntro>
       {!user ? (

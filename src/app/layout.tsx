@@ -9,11 +9,11 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: {
-    default: 'Find Concerts / Your next front row',
+    default: 'Find Concerts IO',
     template: '%s / Find Concerts',
   },
   description:
-    'Find metal, hardcore, rock, and punk concerts from original venue listings. Follow artists, save shows, and keep your private concert history in one place.',
+    'Find metal, hardcore, rock, and punk gigs. Filter by city, date, and venue. Save gigs and keep your private concert history.',
   keywords: [
     'metal concerts',
     'hardcore punk',

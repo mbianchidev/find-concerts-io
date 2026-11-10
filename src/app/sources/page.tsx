@@ -46,15 +46,11 @@ export default function SourcesPage() {
   });
   return (
     <main className="container" id="main" tabIndex={-1}>
-      <PageIntro
-        eyebrow="KNOW WHERE YOUR LISTINGS COME FROM"
-        title="Back to the source."
-      >
+      <PageIntro eyebrow="SOURCES" title="Where we get the gigs.">
         <p>
-          Official venue pages in London, metal.de&apos;s public concert
-          calendar for Berlin, and Metal Agenda for Amsterdam, Haarlem, and
-          Utrecht. Coverage is verified against these sources, not an exhaustive
-          list of every gig.
+          Venue calendars in London, metal.de for Berlin, and Metal Agenda for
+          Amsterdam, Haarlem, and Utrecht. We don&apos;t have every gig. Check
+          the venue&apos;s listing before you book.
         </p>
       </PageIntro>
       <div className="account-grid">
@@ -90,7 +86,7 @@ export default function SourcesPage() {
           </button>
         </section>
         <aside className="panel">
-          <h2>A respectful collector.</h2>
+          <h2>How collection works.</h2>
           <p>
             Every run checks robots.txt, stays on curated HTTPS origins, waits
             at least 1.5 seconds between requests on the same origin, and reads

@@ -50,18 +50,18 @@ export default function SavedPage() {
     <main className="container" id="main" tabIndex={-1}>
       <PageIntro
         eyebrow={user ? 'SAVED TO YOUR ACCOUNT' : 'SAVED IN THIS BROWSER'}
-        title="Plans worth keeping."
+        title="Your saved gigs."
       >
         <p>
           {user ? (
-            'Your shortlist, followed artists, and the next shows to hear about.'
+            'Your saved gigs and the bands and venues you follow.'
           ) : (
             <>
-              Your guest saves stay here.{' '}
+              These saves stay in this browser.{' '}
               <Link className="show-link" href="/account">
                 Sign in
               </Link>{' '}
-              for account-private imports, synced follows, and notifications.
+              for private concert imports, synced follows, and notifications.
             </>
           )}
         </p>
@@ -132,7 +132,7 @@ export default function SavedPage() {
                 <Link className="show-link" href="/venues">
                   venue
                 </Link>{' '}
-                to keep new shows on your radar.
+                to add it here.
               </p>
             )}
           </section>

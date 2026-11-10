@@ -60,7 +60,7 @@ export default function Header() {
           </span>
           <span>
             FIND CONCERTS
-            <span className="brand-caption">GOOD MUSIC. REAL PLANS.</span>
+            <span className="brand-caption">GO SEE A BAND.</span>
           </span>
         </Link>
         <nav
