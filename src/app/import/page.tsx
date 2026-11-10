@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useApp } from '@/components/AppProvider';
 import EventList from '@/components/EventList';
+import ConcertSort from '@/components/ConcertSort';
 import Icon from '@/components/Icon';
 import SearchBar from '@/components/SearchBar';
 import { AccountGate, ErrorState, PageIntro, Pager } from '@/components/Ui';
@@ -16,6 +17,7 @@ import {
   type WorkbookPreview,
 } from '@/lib/schema';
 import type { ImportReport, SearchFilters } from '@/types';
+import { localCalendarDate } from '@/lib/utils';
 
 type Column = Exclude<
   keyof WorkbookMapping,
@@ -46,7 +48,11 @@ export default function ImportPage() {
     0;
   const [filters, setFilters] = useState<SearchFilters>({});
   const [page, setPage] = useState(1);
-  const params = new URLSearchParams({ page: String(page), limit: '12' });
+  const params = new URLSearchParams({
+    page: String(page),
+    limit: '12',
+    today: localCalendarDate(),
+  });
   Object.entries(filters).forEach(([name, value]) => {
     if (typeof value === 'string' && value) params.set(name, value);
   });
@@ -400,12 +406,26 @@ export default function ImportPage() {
             <SearchBar
               citiesPath="/me/cities"
               scope={user.id}
+              initial={filters}
+              defaultPeriod="all"
+              venues={concerts.data?.meta.venues}
+              venuesPending={concerts.isFetching}
               onSearch={(next) => {
-                setFilters(next);
+                setFilters({
+                  ...next,
+                  sort: Object.keys(next).length ? filters.sort : undefined,
+                });
                 setPage(1);
               }}
             />
             <div className="directory-results">
+              <ConcertSort
+                value={filters.sort}
+                onChange={(sort) => {
+                  setFilters((current) => ({ ...current, sort }));
+                  setPage(1);
+                }}
+              />
               <ErrorState
                 error={concerts.error}
                 retry={() => void concerts.refetch()}

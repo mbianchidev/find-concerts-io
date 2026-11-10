@@ -4,6 +4,7 @@ import { handleApi } from '../src/server/api';
 import { ConcertStore } from '../src/server/store';
 import { concert } from './fixtures';
 import { venueKey } from '../src/lib/concerts';
+import { sessionCookie } from '../src/server/auth';
 
 const origin = 'http://localhost:3000';
 
@@ -229,6 +230,185 @@ test('venues with no upcoming shows remain city-filterable and followable', asyn
     );
     store.upsertPublic([concert({ datetime: '2099-04-03' })]);
     assert.equal(store.notifications(user.id).length, 1);
+  } finally {
+    store.close();
+  }
+});
+
+test('discovery applies periods, inclusive ranges, and sorting before pagination', async (context) => {
+  context.mock.timers.enable({
+    apis: ['Date'],
+    now: new Date('2027-04-03T12:00:00Z'),
+  });
+  const store = new ConcertStore(':memory:');
+  try {
+    store.upsertPublic([
+      concert({ id: 'past', datetime: '2027-04-01' }),
+      concert({ id: 'today', datetime: '2027-04-03', lineup: ['Z Mock Band'] }),
+      concert({ id: 'next', datetime: '2027-04-04', lineup: ['A Mock Band'] }),
+      concert({ id: 'unknown', datetime: null }),
+    ]);
+    const defaultPage = await (
+      await handleApi(request('/events?limit=1'), store)
+    ).json();
+    assert.equal(defaultPage.meta.total, 2);
+    assert.equal(defaultPage.data[0].id, 'today');
+    for (const [period, expected] of [
+      ['today', ['today']],
+      ['past', ['past']],
+      ['upcoming', ['today', 'next']],
+      ['all', ['past', 'today', 'next', 'unknown']],
+    ] as const) {
+      const response = await handleApi(
+        request(`/events?period=${period}`),
+        store
+      );
+      assert.deepEqual(
+        (await response.json()).data.map((event: { id: string }) => event.id),
+        expected
+      );
+    }
+    const range = await (
+      await handleApi(
+        request(
+          '/events?date_from=2027-04-01&date_to=2027-04-03&sort=date_desc'
+        ),
+        store
+      )
+    ).json();
+    assert.deepEqual(
+      range.data.map((event: { id: string }) => event.id),
+      ['today', 'past']
+    );
+    const bands = await (
+      await handleApi(request('/events?sort=band_asc&limit=1'), store)
+    ).json();
+    assert.equal(bands.data[0].id, 'next');
+    assert.equal(bands.meta.has_next, true);
+    const localToday = await (
+      await handleApi(request('/events?period=today&today=2027-04-04'), store)
+    ).json();
+    assert.deepEqual(
+      localToday.data.map((event: { id: string }) => event.id),
+      ['next']
+    );
+    for (const query of [
+      'date_from=2027-02-30',
+      'date_to=not-a-date',
+      'date_from=2027-05-01&date_to=2027-04-01',
+      'period=invalid',
+      'sort=title',
+    ]) {
+      assert.equal(
+        (await handleApi(request(`/events?${query}`), store)).status,
+        422
+      );
+    }
+  } finally {
+    store.close();
+  }
+});
+
+test('venue facets count every matching concert, omit empty venues, and ignore their own selection', async () => {
+  const store = new ConcertStore(':memory:');
+  try {
+    const first = concert({ id: 'first', genres: ['Metal'] });
+    const second = concert({
+      id: 'second',
+      genres: ['Metal'],
+      venue: { ...first.venue, name: 'Other Fictional Hall' },
+    });
+    store.upsertPublic([
+      first,
+      concert({ id: 'repeat', genres: ['Metal'] }),
+      second,
+      concert({ id: 'punk', genres: ['Punk'] }),
+    ]);
+    const quiet = { ...first.venue, name: 'Quiet Fictional Hall' };
+    store.upsertVenues([{ ...quiet, id: venueKey(quiet), event_count: 0 }]);
+    const selected = encodeURIComponent(venueKey(first.venue));
+    const response = await handleApi(
+      request(
+        `/events?city=Example+City&genre=Metal&venue=${selected}&limit=1`
+      ),
+      store
+    );
+    const result = await response.json();
+    assert.equal(result.meta.total, 2);
+    assert.equal(result.data.length, 1);
+    assert.deepEqual(
+      result.meta.venues.map((venue: { name: string; event_count: number }) => [
+        venue.name,
+        venue.event_count,
+      ]),
+      [
+        ['Fictional Room', 2],
+        ['Other Fictional Hall', 1],
+      ]
+    );
+    const filtered = await (
+      await handleApi(
+        request(`/events?artist=missing&venue=${selected}`),
+        store
+      )
+    ).json();
+    assert.deepEqual(filtered.meta.venues, []);
+  } finally {
+    store.close();
+  }
+});
+
+test('private date/venue filters and facets stay owner-scoped and directory ranges can include past shows', async (context) => {
+  context.mock.timers.enable({
+    apis: ['Date'],
+    now: new Date('2027-04-03T12:00:00Z'),
+  });
+  const store = new ConcertStore(':memory:');
+  try {
+    const owner = store.createUser('synthetic-filter-owner', 'synthetic-hash');
+    const stranger = store.createUser(
+      'synthetic-filter-stranger',
+      'synthetic-hash'
+    );
+    const archived = concert({ id: 'archived', datetime: '2020-04-03' });
+    store.importEvents(owner.id, {
+      events: [archived],
+      report: { total: 1, imported: 0, duplicates: 0, skipped: 0, issues: [] },
+    });
+    const cookie = sessionCookie(store, owner.id).split(';')[0];
+    const own = await (
+      await handleApi(
+        request(
+          '/me/events?period=past&sort=band_desc',
+          'GET',
+          undefined,
+          cookie
+        ),
+        store
+      )
+    ).json();
+    assert.equal(own.meta.total, 1);
+    assert.equal(own.meta.venues[0].event_count, 1);
+    const otherCookie = sessionCookie(store, stranger.id).split(';')[0];
+    const other = await (
+      await handleApi(
+        request('/me/events?period=past', 'GET', undefined, otherCookie),
+        store
+      )
+    ).json();
+    assert.equal(other.meta.total, 0);
+    assert.deepEqual(other.meta.venues, []);
+    store.upsertPublic([archived]);
+    for (const resource of ['artists', 'venues']) {
+      const directory = await (
+        await handleApi(
+          request(`/${resource}?date_from=2020-04-03&date_to=2020-04-03`),
+          store
+        )
+      ).json();
+      assert.ok(directory.meta.total > 0);
+      assert.equal(directory.meta.venues[0].event_count, 1);
+    }
   } finally {
     store.close();
   }

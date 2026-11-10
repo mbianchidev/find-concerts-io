@@ -312,7 +312,7 @@ export class ConcertStore {
     return this.transaction(() => {
       let added = 0;
       for (const input of events) {
-        const event = eventSchema.parse(input);
+        let event = eventSchema.parse(input);
         if (event.is_private || event.import_details)
           throw new AppError(
             422,
@@ -320,7 +320,7 @@ export class ConcertStore {
             'Private workbook records cannot enter the public catalogue.'
           );
         const existing = this.db
-          .prepare('SELECT owner_id FROM events WHERE id = ?')
+          .prepare('SELECT owner_id, payload FROM events WHERE id = ?')
           .get(event.id);
         if (existing && existing.owner_id !== null)
           throw new AppError(
@@ -328,6 +328,16 @@ export class ConcertStore {
             'EVENT_CONFLICT',
             'A public event cannot replace a private record.'
           );
+        if (existing && !event.image_url) {
+          const previous = eventSchema.parse(
+            JSON.parse(String(existing.payload))
+          );
+          event = {
+            ...event,
+            image_url: previous.image_url,
+            image_kind: previous.image_kind,
+          };
+        }
         this.db
           .prepare(
             `

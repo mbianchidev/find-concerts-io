@@ -67,6 +67,20 @@ published start times remain all-day records; unknown coordinates remain unknown
 Source errors and changed layouts are explicit. Failures do not erase existing
 records, and known cancellations/postponements refresh previously collected gigs.
 
+Collection also enriches missing tour/band photos, with official venue imagery
+as a fallback. Only origins in `src/lib/image-sources.json` are eligible for
+photo-page requests; supported image hosts in that same file configure Next Image.
+Add a host only after checking its public markup and robots policy. Requests
+retain the same delays, redirect restrictions, and origin-level access stops as
+concert collection. Up to 80 additional photo pages are read per run; cached
+lookups let subsequent runs progress without repeatedly downloading known photos.
+New imagery appears after the next collection, or an explicitly queued refresh.
+
+Cheerio's `encoding-sniffer` dependency is overridden to the compatible 1.x API,
+which uses `@exodus/bytes` instead of deprecated `whatwg-encoding`. UTF-8,
+Windows-1252, and stream-decoding regressions cover the override. Revisit it when
+Cheerio adopts the updated dependency itself.
+
 Schema version 3 adds a public venue catalogue and backfills only public events.
 It preserves accounts, sessions, follows, and private imports. Stop both services
 before restoring a protected pre-upgrade backup with a compatible app version.

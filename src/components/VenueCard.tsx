@@ -1,11 +1,19 @@
 'use client';
 
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import type { VenueData } from '@/types';
 import { useApp } from './AppProvider';
 import Icon from './Icon';
 
 export default function VenueCard({ venue }: { venue: VenueData }) {
+  const search = useSearchParams();
+  const query = new URLSearchParams(search);
+  query.delete('page');
+  query.delete('location');
+  if (venue.city) query.set('city', venue.city);
+  else query.delete('city');
+  query.set('venue', venue.id);
   const { saves, toggleSaved, ready, pending } = useApp();
   const followed = saves.some(
     (item) => item.type === 'venue' && item.id === venue.id
@@ -27,13 +35,10 @@ export default function VenueCard({ venue }: { venue: VenueData }) {
         <h2>{venue.name}</h2>
         <p>
           {venue.event_count
-            ? `${venue.event_count} upcoming ${venue.event_count === 1 ? 'show' : 'shows'} collected`
-            : 'No upcoming gigs collected yet.'}
+            ? `${venue.event_count} matching ${venue.event_count === 1 ? 'show' : 'shows'} collected`
+            : 'No matching gigs collected yet.'}
         </p>
-        <Link
-          href={`/?city=${encodeURIComponent(venue.city)}&location=${encodeURIComponent(venue.name)}#shows`}
-          className="show-link"
-        >
+        <Link href={`/?${query}#shows`} className="show-link">
           See the lineup <Icon name="arrow" />
         </Link>
         {(venue.url || venue.source_url) && (

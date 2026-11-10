@@ -1,13 +1,15 @@
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
-import type { PageResult } from '@/types';
+import type { Event, PageResult, SearchFilters } from '@/types';
 import {
   artistKey,
   collectArtists,
   collectTours,
+  collectVenues,
   filterEvents,
   isUpcoming,
   recommendEvents,
+  sortEvents,
   trendingEvents,
 } from '@/lib/concerts';
 import { calendarFile } from '@/lib/calendar';
@@ -32,34 +34,35 @@ import {
   pushSubscriptionSchema,
   requestEmailVerification,
 } from './notifications';
-import { eventSchema, profileUpdateSchema } from '@/lib/schema';
+import {
+  eventSchema,
+  profileUpdateSchema,
+  searchFiltersSchema,
+} from '@/lib/schema';
 import { sourceStatuses } from './scraper';
 import { ConcertStore, getStore } from './store';
 import { spotifyClient, TicketmasterClient } from './providers';
 import { readLimitedBody } from './http';
 
-const pagination = z.object({
+const pagination = searchFiltersSchema.safeExtend({
   page: z.coerce.number().int().min(1).max(10000).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(24),
-  artist: z.string().max(250).optional(),
-  city: z.string().trim().max(250).optional(),
-  location: z.string().max(250).optional(),
-  date: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .optional(),
-  genre: z.string().max(100).optional(),
   past: z.enum(['true', 'false']).optional(),
   saved: z.enum(['true', 'false']).optional(),
   view: z.enum(['all', 'trending']).optional(),
   ids: z.string().max(6000).optional(),
+  today: z.iso.date().optional(),
 });
 
 function data(value: unknown, status = 200, headers?: HeadersInit): Response {
   return Response.json({ data: value }, { status, headers });
 }
 
-function page<T>(items: T[], query: z.infer<typeof pagination>): Response {
+function page<T>(
+  items: T[],
+  query: z.infer<typeof pagination>,
+  matchingEvents?: Event[]
+): Response {
   const result: PageResult<T> = {
     data: items.slice((query.page - 1) * query.limit, query.page * query.limit),
     meta: {
@@ -67,9 +70,54 @@ function page<T>(items: T[], query: z.infer<typeof pagination>): Response {
       page: query.page,
       limit: query.limit,
       has_next: query.page * query.limit < items.length,
+      ...(matchingEvents
+        ? {
+            venues: collectVenues(matchingEvents).map((venue) => ({
+              id: venue.id,
+              name: venue.name,
+              city: venue.city,
+              event_count: venue.event_count,
+            })),
+          }
+        : {}),
     },
   };
   return Response.json(result);
+}
+
+function selectEvents(
+  events: Event[],
+  query: z.infer<typeof pagination>,
+  defaultPeriod: SearchFilters['period'] = 'all'
+) {
+  const period =
+    query.period ||
+    (query.past === 'true' || query.date || query.date_from || query.date_to
+      ? 'all'
+      : defaultPeriod);
+  const matching = filterEvents(
+    events,
+    { ...query, period, venue: undefined },
+    query.today
+  );
+  return {
+    matching,
+    selected: filterEvents(matching, { venue: query.venue }),
+  };
+}
+
+function eventPage(
+  events: Event[],
+  query: z.infer<typeof pagination>,
+  defaultPeriod: SearchFilters['period'] = 'all',
+  ranked = false
+): Response {
+  const { matching, selected } = selectEvents(events, query, defaultPeriod);
+  return page(
+    ranked && !query.sort ? selected : sortEvents(selected, query.sort),
+    query,
+    matching
+  );
 }
 
 async function bodyBytes(request: Request, limit: number): Promise<Buffer> {
@@ -220,9 +268,6 @@ async function route(request: Request, store: ConcertStore): Promise<Response> {
   if (path === 'events' && method === 'GET') {
     const filters = query();
     let events = catalogue();
-    if (filters.past !== 'true')
-      events = events.filter((event) => isUpcoming(event));
-    events = filterEvents(events, filters);
     if (filters.ids !== undefined) {
       const ids = new Set(filters.ids.split(',').filter(Boolean));
       if (ids.size > 30)
@@ -244,8 +289,8 @@ async function route(request: Request, store: ConcertStore): Promise<Response> {
       events = events.filter((event) => saved.has(event.id));
     }
     if (filters.view === 'trending')
-      events = trendingEvents(events, filters.location);
-    return page(events, filters);
+      events = trendingEvents(events, filters.location, filters.today);
+    return eventPage(events, filters, 'upcoming', filters.view === 'trending');
   }
   const eventRoute = /^events\/([^/]+)(?:\/(calendar|similar))?$/.exec(path);
   if (eventRoute && method === 'GET') {
@@ -275,19 +320,22 @@ async function route(request: Request, store: ConcertStore): Promise<Response> {
     }
     if (eventRoute[2] === 'similar') {
       const filters = query();
-      return page(
-        filterEvents(
-          recommendEvents(store.events(null), [], undefined, event),
-          filters
-        ),
-        filters
+      return eventPage(
+        recommendEvents(store.events(null), [], filters.today, event),
+        filters,
+        'upcoming',
+        true
       );
     }
     return data(event);
   }
   if (['artists', 'venues', 'tours'].includes(path) && method === 'GET') {
     const filters = query();
-    const events = filterEvents(store.events(null), filters);
+    const { matching, selected: events } = selectEvents(
+      catalogue(),
+      filters,
+      'upcoming'
+    );
     if (path === 'artists')
       return page(
         collectArtists(events).filter(
@@ -295,7 +343,8 @@ async function route(request: Request, store: ConcertStore): Promise<Response> {
             !filters.artist ||
             artist.name.toLowerCase().includes(filters.artist.toLowerCase())
         ),
-        filters
+        filters,
+        matching
       );
     if (path === 'venues') {
       const saved =
@@ -320,12 +369,20 @@ async function route(request: Request, store: ConcertStore): Promise<Response> {
               filters.location
             ) &&
             contains((venue.genres || []).join(' '), filters.genre) &&
-            (!(filters.artist || filters.date) || venue.event_count > 0) &&
+            (!filters.venue || venue.id === filters.venue) &&
+            (!(
+              filters.artist ||
+              filters.date ||
+              filters.date_from ||
+              filters.date_to ||
+              (filters.period && filters.period !== 'upcoming')
+            ) ||
+              venue.event_count > 0) &&
             (!saved || saved.has(venue.id))
         );
-      return page(venues, filters);
+      return page(venues, filters, matching);
     }
-    return page(collectTours(events), filters);
+    return page(collectTours(events), filters, matching);
   }
   if (path === 'sources' && method === 'GET')
     return data(sourceStatuses(store));
@@ -333,7 +390,7 @@ async function route(request: Request, store: ConcertStore): Promise<Response> {
   if (path === 'me/events' && method === 'GET') {
     const user = requireUser(request, store);
     const filters = query();
-    return page(filterEvents(store.events(user.id, true), filters), filters);
+    return eventPage(store.events(user.id, true), filters);
   }
   if (path === 'me/recommendations' && method === 'GET') {
     const user = requireUser(request, store);
@@ -342,14 +399,13 @@ async function route(request: Request, store: ConcertStore): Promise<Response> {
       ...store.events(null, true),
       ...store.events(user.id, true),
     ];
-    return page(
-      filterEvents(
-        recommendEvents(candidates, store.saves(user.id)).filter(
-          (event) => !event.is_private
-        ),
-        filters
+    return eventPage(
+      recommendEvents(candidates, store.saves(user.id), filters.today).filter(
+        (event) => !event.is_private
       ),
-      filters
+      filters,
+      'upcoming',
+      true
     );
   }
   if (path === 'me/saved' && method === 'GET')
@@ -364,7 +420,7 @@ async function route(request: Request, store: ConcertStore): Promise<Response> {
         return event ? [event] : [];
       });
     const filters = query();
-    return page(filterEvents(events, filters), filters);
+    return eventPage(events, filters);
   }
   if (path === 'me/saved' && method === 'PUT') {
     const user = requireUser(request, store);

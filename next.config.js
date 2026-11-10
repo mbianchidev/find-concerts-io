@@ -1,3 +1,5 @@
+const imageSources = require('./src/lib/image-sources.json');
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   basePath: process.env.NEXT_PUBLIC_BASE_PATH || '',
@@ -10,11 +12,11 @@ const nextConfig = {
     '@sentry/node',
   ],
   images: {
-    remotePatterns: [
-      { protocol: 'https', hostname: 'dice-media.imgix.net' },
-      { protocol: 'https', hostname: 'images.squarespace-cdn.com' },
-      { protocol: 'https', hostname: 'static1.squarespace.com' },
-    ],
+    maximumRedirects: 0,
+    remotePatterns: imageSources.imageHosts.map((hostname) => ({
+      protocol: 'https',
+      hostname,
+    })),
   },
   async headers() {
     return [

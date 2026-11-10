@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { decodeStream, loadBuffer } from 'cheerio';
 import {
   classifyGenres,
   parseSourcePage,
@@ -13,6 +14,27 @@ import {
 import { CALENDAR_SOURCES } from '../src/server/calendars';
 import { ConcertStore } from '../src/server/store';
 import { concert } from './fixtures';
+
+test('Cheerio keeps UTF-8, Windows-1252 buffers, and streamed HTML working with the encoding override', async () => {
+  const legacy = Buffer.from(
+    '<meta charset="windows-1252"><h1>Synthetic Caf\u00e9</h1>',
+    'latin1'
+  );
+  assert.equal(loadBuffer(legacy)('h1').text(), 'Synthetic Caf\u00e9');
+  const utf8 = Buffer.from(
+    '<meta charset="utf-8"><h1>Synthetic \u00c5ngstr\u00f6m</h1>'
+  );
+  assert.equal(loadBuffer(utf8)('h1').text(), 'Synthetic \u00c5ngstr\u00f6m');
+  const streamed = await new Promise<string>((resolve, reject) => {
+    const stream = decodeStream({}, (error, $) => {
+      if (error) reject(error);
+      else resolve($('h1').text());
+    });
+    stream.on('error', reject);
+    stream.end(legacy);
+  });
+  assert.equal(streamed, 'Synthetic Caf\u00e9');
+});
 
 test('official page adapters classify only event content and preserve sold-out status', () => {
   const html = `<article class="event">
@@ -160,3 +182,88 @@ test('a failed robots request is not retried for other city calendars on the sam
     store.close();
   }
 });
+
+test(
+  'calendar collection enriches a shared tour once and persists its photo without changing concert identity',
+  { timeout: 20000 },
+  async (context) => {
+    const store = new ConcertStore(':memory:');
+    const calls: string[] = [];
+    const origin = 'https://www.metal.de';
+    const tour = `${origin}/touren/synthetic-mock/`;
+    const date = new Date();
+    date.setUTCDate(date.getUTCDate() + 30);
+    const labels = [
+      'black-metal',
+      'death-metal',
+      'doom-metal',
+      'gothic-metal-mittelalter',
+      'heavy-metal',
+      'modern-metal',
+      'pagan-viking-metal',
+      'thrash-metal',
+      'hardcore-grindcore',
+      'post-rock-metal',
+      'progressive-rock-metal',
+      'rock',
+      'punk',
+    ];
+    context.mock.method(
+      globalThis,
+      'fetch',
+      async (input: string | URL | Request) => {
+        const url = String(input);
+        calls.push(url);
+        if (url === `${origin}/robots.txt`)
+          return new Response('', { status: 404 });
+        if (url === `${origin}/konzerte/`)
+          return new Response(`<script>var ajaxurl = '${origin}/wp-admin/admin-ajax.php';</script>
+        <form id="searchconcerts">${labels.map((id, index) => `<input class="genre" id="${id}" value="${index + 1}">`).join('')}</form>`);
+        if (url.startsWith(`${origin}/wp-admin/admin-ajax.php?`))
+          return Response.json({
+            status: 'success',
+            data: [
+              {
+                date: `${String(date.getUTCDate()).padStart(2, '0')}.${String(date.getUTCMonth() + 1).padStart(2, '0')}.${date.getUTCFullYear()}`,
+                title: 'Synthetic Mock Tour',
+                billing: 'Synthetic Mock Band',
+                link: tour,
+                location: {
+                  name: 'Fictional Berlin Room',
+                  city: 'Berlin',
+                  link: `${origin}/locations/mock/`,
+                  lat: '',
+                  long: '',
+                },
+              },
+            ],
+          });
+        if (url === tour)
+          return new Response(
+            `<meta property="og:image" content="${origin}/images/synthetic-tour.jpg">`
+          );
+        throw new Error(`Unexpected synthetic fetch: ${url}`);
+      }
+    );
+    try {
+      const results = await collectConcerts(store, true, ['Berlin']);
+      assert.equal(results[0].error, null);
+      assert.equal(results[0].added, 1);
+      const event = store.events(null)[0];
+      assert.equal(event.image_url, `${origin}/images/synthetic-tour.jpg`);
+      assert.equal(event.image_kind, 'event');
+      assert.equal(calls.filter((url) => url === tour).length, 1);
+      assert.equal(
+        calls.filter((url) => url.endsWith('/robots.txt')).length,
+        1
+      );
+      assert.ok(
+        store.db
+          .prepare('SELECT key FROM cache WHERE key = ?')
+          .get(`photo:${tour}`)
+      );
+    } finally {
+      store.close();
+    }
+  }
+);

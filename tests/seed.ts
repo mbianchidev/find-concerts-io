@@ -23,6 +23,20 @@ try {
   };
   store.upsertPublic([
     concert({
+      id: 'source:synthetic-today',
+      title: 'Synthetic Tonight',
+      lineup: ['Synthetic Tonight'],
+      genres: ['Metal'],
+      datetime: future(0),
+    }),
+    concert({
+      id: 'source:synthetic-past',
+      title: 'Synthetic Archive Show',
+      lineup: ['Synthetic Archive Band'],
+      genres: ['Metal'],
+      datetime: future(-5),
+    }),
+    concert({
       id: 'source:synthetic-metal',
       title: 'Synthetic Voltage',
       lineup: ['Synthetic Voltage', 'Mock Support'],

@@ -5,6 +5,8 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import writeXlsxFile from 'write-excel-file/node';
 
+test.use({ timezoneId: 'UTC' });
+
 async function register(page: Page) {
   const username = `test-${randomUUID().slice(0, 12)}`;
   await page.goto('/account/');
@@ -64,9 +66,7 @@ test('city selection persists in URLs, resets pagination, clears, and includes z
   page,
 }) => {
   await page.goto('/?page=2');
-  await page
-    .getByLabel('City', { exact: true })
-    .selectOption('Other Example City');
+  await page.getByLabel('Where', { exact: true }).fill('Other Example City');
   await page.getByRole('button', { name: 'Find shows', exact: true }).click();
   await expect(page).toHaveURL(/city=Other/);
   expect(new URL(page.url()).searchParams.has('page')).toBe(false);
@@ -77,11 +77,11 @@ test('city selection persists in URLs, resets pagination, clears, and includes z
     page.getByRole('link', { name: 'View Synthetic Voltage', exact: true })
   ).toHaveCount(0);
   await page.reload();
-  await expect(page.getByLabel('City', { exact: true })).toHaveValue(
+  await expect(page.getByLabel('Where', { exact: true })).toHaveValue(
     'Other Example City'
   );
   await page.getByRole('button', { name: 'Clear', exact: true }).click();
-  await expect(page.getByLabel('City', { exact: true })).toHaveValue('');
+  await expect(page.getByLabel('Where', { exact: true })).toHaveValue('');
   await expect(
     page.getByRole('link', { name: 'View Synthetic Voltage', exact: true })
   ).toBeVisible();
@@ -98,12 +98,163 @@ test('city selection persists in URLs, resets pagination, clears, and includes z
     page.getByRole('button', { name: 'Following venue', exact: true })
   ).toHaveAttribute('aria-pressed', 'true');
   await page.reload();
-  await expect(page.getByLabel('City', { exact: true })).toHaveValue(
+  await expect(page.getByLabel('Where', { exact: true })).toHaveValue(
     'Quiet Example City'
   );
   await expect(
     page.getByRole('button', { name: 'Following venue', exact: true })
   ).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('date shortcuts, inclusive ranges, and date/band sorting persist in discovery URLs', async ({
+  page,
+}) => {
+  await page.goto('/?period=today');
+  await expect(
+    page.getByRole('button', { name: 'Today', exact: true })
+  ).toHaveAttribute('aria-pressed', 'true');
+  await expect(
+    page.getByRole('link', { name: 'View Synthetic Tonight', exact: true })
+  ).toBeVisible();
+  await expect(page.locator('.event-card')).toHaveCount(1);
+  await page.getByRole('button', { name: 'Past', exact: true }).click();
+  await page.getByRole('button', { name: 'Find shows', exact: true }).click();
+  await expect(
+    page.getByRole('link', { name: 'View Synthetic Archive Show', exact: true })
+  ).toBeVisible();
+  await expect(page.locator('.event-card')).toHaveCount(1);
+  const response = await page.request.get('/api/v1/events/?limit=100');
+  const events = (await response.json()).data as {
+    id: string;
+    datetime: string;
+  }[];
+  const from = events
+    .find((event) => event.id === 'source:synthetic-metal')!
+    .datetime.slice(0, 10);
+  const to = events
+    .find((event) => event.id === 'source:synthetic-punk')!
+    .datetime.slice(0, 10);
+  await page.getByLabel('From', { exact: true }).fill(from);
+  await page.getByLabel('To', { exact: true }).fill(to);
+  await page.getByRole('button', { name: 'Find shows', exact: true }).click();
+  await expect(page.locator('.event-card')).toHaveCount(2);
+  await expect(page).toHaveURL(/date_from=/);
+  await page.getByLabel('Sort by', { exact: true }).selectOption('band_desc');
+  await expect(page.locator('.event-card h3').first()).toHaveText(
+    'Synthetic Voltage'
+  );
+  await page.getByLabel('Sort by', { exact: true }).selectOption('date_desc');
+  await expect(page.locator('.event-card h3').first()).toHaveText(
+    'Synthetic Paper Signals'
+  );
+  await page.reload();
+  await expect(page.getByLabel('From', { exact: true })).toHaveValue(from);
+  await expect(page.getByLabel('Sort by', { exact: true })).toHaveValue(
+    'date_desc'
+  );
+  await page.getByRole('button', { name: 'Clear', exact: true }).click();
+  await expect(page.getByLabel('From', { exact: true })).toHaveValue('');
+  await expect(
+    page.getByRole('button', { name: 'Upcoming', exact: true })
+  ).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByLabel('Sort by', { exact: true })).toHaveValue(
+    'date_asc'
+  );
+  await page.goto('/venues/?period=past');
+  await expect(
+    page.getByText('1 matching show collected', { exact: true })
+  ).toBeVisible();
+  await page.getByRole('link', { name: 'See the lineup', exact: true }).click();
+  await expect(page).toHaveURL(/period=past/);
+  await expect(page).toHaveURL(/venue=/);
+  await expect(
+    page.getByRole('link', { name: 'View Synthetic Archive Show', exact: true })
+  ).toBeVisible();
+});
+
+test('advanced venue choices show counts for the applied filters and exclude empty venues', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await expect(page.getByLabel('Where', { exact: true })).toBeEnabled();
+  await page.getByLabel('Where', { exact: true }).fill('Example City');
+  await page.getByLabel('Who', { exact: true }).fill('Mock Support');
+  await page.getByRole('button', { name: 'Find shows', exact: true }).click();
+  await page.getByText('Advanced filters', { exact: true }).click();
+  const venue = page.getByLabel('Venue', { exact: true });
+  await expect(venue).toBeEnabled();
+  await expect(venue.locator('option')).toHaveText([
+    'All matching venues',
+    'Fictional Room / Example City (1)',
+  ]);
+  await venue.selectOption({ label: 'Fictional Room / Example City (1)' });
+  await page.getByRole('button', { name: 'Find shows', exact: true }).click();
+  await expect(page).toHaveURL(/venue=/);
+  await expect(page.locator('.event-card')).toHaveCount(1);
+  await page.reload();
+  await expect(page.getByLabel('Venue', { exact: true })).toHaveValue(
+    'fictional room|example city|test country'
+  );
+  await expect(page.getByLabel('Where', { exact: true })).toHaveValue(
+    'Example City'
+  );
+});
+
+test('dark mode is the default even on light systems, persists, and synchronizes between tabs', async ({
+  page,
+  context,
+}, testInfo) => {
+  await page.emulateMedia({ colorScheme: 'light' });
+  await page.goto('/');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  const toggle = page.getByRole('button', { name: 'Dark mode', exact: true });
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  await page.screenshot({
+    path: testInfo.outputPath('discovery-dark.png'),
+    fullPage: true,
+  });
+  await toggle.click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute(
+    'content',
+    '#f5f6f2'
+  );
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  await page.screenshot({
+    path: testInfo.outputPath('discovery-light.png'),
+    fullPage: true,
+  });
+  const other = await context.newPage();
+  try {
+    await other.goto('/');
+    await expect(other.locator('html')).toHaveAttribute('data-theme', 'light');
+    await other.getByRole('button', { name: 'Dark mode', exact: true }).click();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  } finally {
+    await other.close();
+  }
+});
+
+test('theme changes report blocked preference storage instead of silently claiming persistence', async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const original = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (key, value) {
+      if (key === 'find-concerts-theme')
+        throw new Error('Synthetic blocked storage');
+      original.call(this, key, value);
+    };
+  });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Dark mode', exact: true }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  await expect(
+    page
+      .getByRole('status')
+      .filter({ hasText: 'browser storage could not save it' })
+  ).toBeVisible();
 });
 
 test('account follows and saves survive reload and drive recommendations and calendar export', async ({

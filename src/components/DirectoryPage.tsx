@@ -3,8 +3,9 @@
 import { Suspense } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type { z } from 'zod';
-import type { SearchFilters } from '@/types';
 import { useApiPage } from '@/lib/api';
+import { searchFiltersSchema } from '@/lib/schema';
+import { localCalendarDate } from '@/lib/utils';
 import SearchBar from './SearchBar';
 import GenreFilters from './GenreFilters';
 import { ErrorState, LoadingGrid, PageIntro, Pager } from './Ui';
@@ -29,15 +30,13 @@ function DirectoryContent<T>({
   const search = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
-  const filters: SearchFilters = {
-    city: search.get('city') || undefined,
-    location: search.get('location') || undefined,
-    artist: search.get('artist') || undefined,
-    date: search.get('date') || undefined,
-    genre: search.get('genre') || undefined,
-  };
+  const filters = searchFiltersSchema.parse(Object.fromEntries(search));
   const page = search.get('page') || '1';
-  const params = new URLSearchParams({ page, limit: '12' });
+  const params = new URLSearchParams({
+    page,
+    limit: '12',
+    today: localCalendarDate(),
+  });
   Object.entries(filters).forEach(([name, value]) => {
     if (typeof value === 'string' && value) params.set(name, value);
   });
@@ -59,19 +58,16 @@ function DirectoryContent<T>({
         <p>{description}</p>
       </PageIntro>
       <SearchBar
-        key={[
-          filters.artist,
-          filters.city,
-          filters.location,
-          filters.date,
-        ].join('|')}
+        key={JSON.stringify(filters)}
         initial={filters}
+        venues={results.data?.meta.venues}
+        venuesPending={results.isFetching}
         onSearch={(next) => {
           update({
-            city: next.city,
-            location: next.location,
-            artist: next.artist,
-            date: next.date,
+            ...Object.fromEntries(
+              Object.keys(filters).map((key) => [key, undefined])
+            ),
+            ...next,
             genre: Object.keys(next).length ? filters.genre : undefined,
           });
         }}

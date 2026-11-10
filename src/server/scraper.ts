@@ -12,6 +12,12 @@ import { eventSchema } from '@/lib/schema';
 import type { ConcertStore } from './store';
 import { readLimitedBody } from './http';
 import {
+  enrichConcertImages,
+  extractPagePhoto,
+  trustedPhotoPageUrl,
+  type PagePhoto,
+} from './images';
+import {
   CALENDAR_SOURCES,
   metalDeSearches,
   parseMetalAgendaPage,
@@ -64,6 +70,12 @@ const USER_AGENT =
   'FindConcertsIO/1.0 (+https://github.com/mbianchidev/find-concerts-io)';
 const MAX_PAGE_BYTES = 3 * 1024 * 1024;
 const MAX_PAGES = 40;
+const MAX_PHOTO_PAGES = 80;
+const photoSchema = z.object({
+  image_url: z.string().optional(),
+  image_kind: z.enum(['event', 'artist', 'venue']).optional(),
+  venue_url: z.string().optional(),
+});
 const structuredEvent = z
   .object({
     '@type': z.union([z.string(), z.array(z.string())]),
@@ -177,7 +189,8 @@ function londonTime(date: string, time: string): string | undefined {
 export function parseSourcePage(
   html: string,
   url: string,
-  source: ConcertSource
+  source: ConcertSource,
+  venueImage?: string
 ): Event | undefined {
   const $ = load(html);
   const article = $('article.event, article.eventitem').first();
@@ -232,23 +245,7 @@ export function parseSourcePage(
       `A concert date could not be verified on ${url}.`
     );
   const end = validTimestamp(structured?.endDate);
-  const image =
-    article
-      .find('.event-header-image img, .eventitem-column-content img')
-      .first()
-      .attr('src') || $('meta[property="og:image"]').attr('content');
-  const imageUrl = image
-    ? new URL(image, url).href.replace(/^http:/, 'https:')
-    : undefined;
-  const supportedImage =
-    imageUrl &&
-    [
-      'dice-media.imgix.net',
-      'images.squarespace-cdn.com',
-      'static1.squarespace.com',
-    ].includes(new URL(imageUrl).hostname)
-      ? imageUrl
-      : undefined;
+  const photo = extractPagePhoto(html, url);
   const rawStatus = `${title} ${structured?.eventStatus || ''}`.toLowerCase();
   const headliners = title
     .replace(/\s*\|.*$/, '')
@@ -278,7 +275,12 @@ export function parseSourcePage(
     lineup,
     genres,
     url,
-    image_url: supportedImage,
+    image_url: photo.image_url || venueImage,
+    image_kind: photo.image_url
+      ? photo.image_kind
+      : venueImage
+        ? 'venue'
+        : undefined,
     description: `Live at ${source.venue.name}, ${source.venue.city}. Open the original venue listing for the full lineup, accessibility information, and tickets.`,
     source: {
       id: source.id,
@@ -412,6 +414,8 @@ async function sourceReader(
   return {
     allowed: (url: string) =>
       access.robots.isAllowed(url, USER_AGENT) !== false,
+    readable: (url: string) =>
+      !access.blocked && access.robots.isAllowed(url, USER_AGENT) !== false,
     read: async (url: string) => {
       const response = await fetchPage(
         url,
@@ -510,6 +514,8 @@ export async function collectConcerts(
       'No configured collector exists for one or more requested cities. Check /sources before collecting.'
     );
   const policies = new Map<string, Promise<SourcePolicy>>();
+  const photoPages = new Map<string, Promise<PagePhoto | undefined>>();
+  let photoRequests = 0;
   for (const source of allSources.filter(
     (entry) => !requested.size || requested.has(artistKey(cityOf(entry)))
   )) {
@@ -550,6 +556,67 @@ export async function collectConcerts(
           `The listing returned HTTP ${index.status}. No access restrictions were bypassed.`
         );
       const warnings: string[] = [];
+      const sourcePhoto = extractPagePhoto(index.text, source.url);
+      photoPages.set(source.url, Promise.resolve(sourcePhoto));
+      const readPhoto = (url: string): Promise<PagePhoto | undefined> => {
+        if (!trustedPhotoPageUrl(url)) return Promise.resolve(undefined);
+        const previous = photoPages.get(url);
+        if (previous) return previous;
+        const pending = (async () => {
+          const cacheKey = `photo:${url}`;
+          const cached = store.db
+            .prepare(
+              'SELECT payload FROM cache WHERE key = ? AND expires_at > ?'
+            )
+            .get(cacheKey, Date.now());
+          if (cached)
+            return photoSchema.parse(JSON.parse(String(cached.payload)));
+          if (photoRequests >= MAX_PHOTO_PAGES) {
+            const message =
+              'The photo-page budget was reached; remaining images will be retried on a later collection.';
+            if (!warnings.includes(message)) warnings.push(message);
+            return undefined;
+          }
+          const imageReader = await sourceReader({ url }, policies);
+          if (!imageReader.readable(url)) {
+            warnings.push(
+              'A photo page was excluded by robots.txt or an origin access limit.'
+            );
+            return undefined;
+          }
+          photoRequests++;
+          const page = await imageReader.read(url);
+          if (page.status !== 200) {
+            warnings.push(
+              `A photo page returned HTTP ${page.status}; concert metadata was retained.`
+            );
+            logger.warn(
+              { source: source.id, url, status: page.status },
+              'Concert photo page could not be read'
+            );
+            return undefined;
+          }
+          const photo = extractPagePhoto(page.text, url);
+          const ttl = (photo.image_url ? 7 : 1) * 24 * 60 * 60 * 1000;
+          store.db
+            .prepare(
+              'INSERT OR REPLACE INTO cache (key, payload, expires_at) VALUES (?, ?, ?)'
+            )
+            .run(cacheKey, JSON.stringify(photo), Date.now() + ttl);
+          return photo;
+        })().catch((cause: unknown) => {
+          warnings.push(
+            'A photo lookup failed; concert metadata and existing images were retained. See server logs.'
+          );
+          logger.warn(
+            { source: source.id, url, err: cause },
+            'Concert photo lookup failed'
+          );
+          return undefined;
+        });
+        photoPages.set(url, pending);
+        return pending;
+      };
       if ('parser' in source) {
         const pages: CalendarResult[] = [];
         if (source.parser === 'metalagenda') {
@@ -563,6 +630,10 @@ export async function collectConcerts(
                 `A venue calendar returned HTTP ${page.status}.`
               );
             pages.push(parseMetalAgendaPage(page.text, source, url));
+            photoPages.set(
+              url,
+              Promise.resolve(extractPagePhoto(page.text, url))
+            );
           }
         } else {
           const endpoint = /var\s+ajaxurl\s*=\s*['"]([^'"]+)['"]/.exec(
@@ -616,7 +687,24 @@ export async function collectConcerts(
           }
         }
         store.upsertVenues(pages.flatMap((page) => page.venues));
-        added = store.upsertPublic([...events.values()]);
+        const candidates = [...events.values()].map((event) => {
+          const previous = store.event(event.id);
+          return {
+            ...event,
+            image_url: event.image_url || previous?.image_url,
+            image_kind: event.image_url
+              ? event.image_kind
+              : previous?.image_kind,
+          };
+        });
+        added = store.upsertPublic(
+          await enrichConcertImages(
+            candidates,
+            store.venues(),
+            readPhoto,
+            store.events(null, true)
+          )
+        );
         collected = [...events.values()].filter((event) =>
           isUpcoming(event)
         ).length;
@@ -645,7 +733,12 @@ export async function collectConcerts(
             continue;
           }
           try {
-            const event = parseSourcePage(page.text, url, source);
+            const event = parseSourcePage(
+              page.text,
+              url,
+              source,
+              sourcePhoto.image_url
+            );
             if (
               !event ||
               !shouldRefreshSourceEvent(event, !!store.event(event.id))

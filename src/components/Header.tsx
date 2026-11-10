@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useRef, useState } from 'react';
 import { useApp } from './AppProvider';
 import Icon from './Icon';
+import ThemeToggle from './ThemeToggle';
 
 const links = [
   { href: '/', label: 'Discover' },
@@ -86,6 +87,7 @@ export default function Header() {
           ))}
         </nav>
         <div className="header-actions">
+          <ThemeToggle />
           {authStatus === 'loading' ? (
             <span className="account-pending" role="status">
               Checking account...

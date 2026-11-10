@@ -50,16 +50,30 @@ imports, and notifications. The app does not encrypt the database at rest.
 Filtering searches concert titles, support acts, venues, cities, countries,
 local calendar dates, and genres. Upcoming-day comparisons normalize explicit
 timestamp offsets to UTC, while date filters retain the venue-local calendar date.
-The dedicated `city` facet is a complete, case-insensitive, NFKC-normalized match,
+One Where field offers city suggestions and broader venue/country text, rather
+than independent city and location controls. The `city` facet is a complete,
+case-insensitive, NFKC-normalized match,
 not a venue-name substring or a surrounding-area search. Discovery and directory
 URLs preserve it across reloads, pagination resets on filter changes, and Clear
 removes it. Private city options are available only to the signed-in owner.
+Upcoming includes today. Today/past shortcuts and inclusive date ranges combine;
+multi-day concerts match overlapping ranges. The browser supplies its local
+reference day, with UTC as the API-only default. Concerts sort by chronological
+date or headliner name before pagination, with unknown dates last. Venue dropdowns
+count the entire filtered result set, excluding their own selection and empty
+venues; this does not remove empty rooms from the followable venue catalogue.
 Recommendations use actual saved genres, followed artists, and followed venues,
 and exclude saved, canceled, postponed,
 or past events. Similar shows use the selected concert as their seed.
 Trending ranks actual account saves in the chosen area; absent popularity does
 not become an invented count. Tours group multiple collected dates by artist
 without claiming an official tour name.
+
+Dark mode is the default regardless of system appearance. Semantic CSS tokens
+cover discovery, directories, details, imports, and account settings in both
+themes. A small head script applies an explicitly saved light preference before
+paint. The accessible header toggle persists locally, synchronizes open tabs,
+updates browser chrome, and reports blocked storage without breaking the toggle.
 
 Calendar exports escape and fold iCalendar text, preserve time offsets, use
 exclusive all-day end dates, and reject unconfirmed dates. Private attendance
@@ -99,6 +113,19 @@ aliases do not discard otherwise valid concert records.
 Robots policies, delays, and access-limit state are shared per origin for the
 entire run. Redirect destinations are checked before requesting them. Blocked
 origins and failed robots checks are not retried through another city source.
+
+Photo collection reads event/tour JSON-LD, performer images, lazy/responsive
+posters, and Open Graph/Twitter metadata. Missing calendar artwork is enriched
+from explicitly curated event/tour pages, then reused headliner photos, then an
+official venue photo. Venue fallback imagery is not reused as artist imagery.
+`src/lib/image-sources.json` is shared by extraction and Next Image, so an accepted
+host is also renderable. Photo-page origins are separately curated; image
+redirects are disabled. Private imports never trigger these requests.
+Reads share the collection's robots policies, delays, and blocked-origin state.
+The run adds at most 80 photo content-page lookups, deduplicates URLs, and caches
+successful images for seven days or empty metadata for one day. Lookup failures
+are surfaced as collection warnings without erasing concerts or existing photos;
+later event artwork can replace a venue fallback.
 
 CLI and scheduled collection use the same persistent queue. Jobs have exclusive,
 renewable ten-minute leases, bounded attempts, and completion ownership checks.

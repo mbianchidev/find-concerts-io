@@ -2,7 +2,7 @@
 
 Base path: `/api/v1`. All responses are JSON except calendar and account-export
 downloads. Single resources use `{ data }`; lists use
-`{ data, meta: { total, page, limit, has_next } }`. Pagination starts at 1 and
+`{ data, meta: { total, page, limit, has_next, venues? } }`. Pagination starts at 1 and
 accepts limits up to 100. Errors use
 `{ error: { code, message, request_id, details? } }`. Responses carry a matching
 `X-Request-ID` and are never publicly cached by the browser.
@@ -44,7 +44,8 @@ City options include persistent public venues, even with no upcoming concerts.
 | `/integrations/spotify/artists`       | GET               | Authenticated explicit artist search `?q=`                                              |
 | `/integrations/ticketmaster/searches` | POST              | Authenticated `{ q, city?, genre? }`                                                    |
 
-List filters: `artist`, `city`, `location`, `date=YYYY-MM-DD`, `genre`, and where applicable
+List filters: `artist`, `city`, `location`, `date=YYYY-MM-DD`, `date_from`,
+`date_to`, `period`, `venue`, `sort`, `genre`, and where applicable
 `past=true`, `saved=true`, or `view=trending`. The public event endpoint accepts
 at most 30 comma-separated `ids` for guest shortlists and never resolves private IDs.
 
@@ -53,16 +54,52 @@ at most 30 comma-separated `ids` for guest shortlists and never resolves private
 with other filters on discovery, recommendations, similar concerts, saved/private
 concerts, and directories. `location` remains the broader venue/city/country search.
 
+The UI combines city suggestions and free-text location search into one **Where**
+field. Choosing a known city sends `city`; other place text sends `location`.
+
+`date_from` and `date_to` are inclusive venue-local calendar dates and can be used
+independently. Multi-day shows match when their date span overlaps the range.
+Invalid dates and reversed ranges return 422. The legacy `date` filter still
+matches a show's start date.
+
+`period=upcoming` includes today and future dates, excluding cancelled/postponed
+shows. `today` matches concerts running on the reference day; `past` matches
+concerts that ended before it. `all` also includes unconfirmed dates unless a
+date range excludes them. Public discovery/directories default to upcoming;
+private history and saved shows default to all. Explicit dates/ranges imply all
+unless a period is supplied, so historical ranges work without another flag.
+The browser sends its local day as `today=YYYY-MM-DD`; API callers that omit it
+use the current UTC day. Upcoming comparisons retain explicit timestamp offsets.
+Recommendations and trending remain upcoming-only.
+
+Concert ordering accepts `sort=date_asc`, `date_desc`, `band_asc`, or `band_desc`.
+Date order is chronological, with unconfirmed dates last in both directions.
+Band order uses the headliner, falling back to the title. Sorting happens before
+pagination. Discovery defaults to soonest first; recommendations/trending retain
+their ranking unless an explicit sort is requested.
+
+Concert and directory lists return `meta.venues` as
+`[{ id, name, city, event_count }]`. These facets count the complete matching set,
+not the current page, and omit zero-count venues. The selected `venue` facet is
+excluded from its own counts so users can switch venues without clearing it.
+Other filters, including date period/range, city, artist, and genre, remain active.
+Private facets are owner-scoped. The independent venue directory still retains
+followable venues without concerts.
+
 Venue records may include `genres`, `source_url`, and an optional venue-website `url`.
 Their stable IDs also validate follows when `event_count` is zero. City, location,
 and genre filters can return these empty venues; artist/date filters require a
-matching upcoming gig. Counts describe collected matching shows, not a claim that
+matching gig in the chosen period/range. Counts describe collected matching shows, not a claim that
 the venue has no other concerts.
 
 Event sources may include `genre_basis: "calendar"` or `"description"`.
 Specialist-calendar categories are not independently verified artist subgenres.
 An explicit concert date without a published start time uses `date_only: true`;
 no local start time or UTC offset is invented.
+
+Optional `image_kind: "event" | "artist" | "venue"` distinguishes concert/tour
+artwork, reused headliner imagery, and a venue-photo fallback. Photos are public
+source URLs, not uploaded copies or fabricated artwork.
 
 Mutations require an `Origin` equal to `APP_ORIGIN`. JSON mutations require
 `application/json`; imports require multipart forms. Session cookies are

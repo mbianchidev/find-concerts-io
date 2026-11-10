@@ -11,7 +11,7 @@ export default function ToursPage() {
       schema={tourSchema}
       eyebrow="ANOTHER CITY. SAME FRONT ROW."
       title="Catch the next date."
-      description="Collected upcoming dates grouped by artist. These are verified listings, not invented official tour schedules."
+      description="Collected dates grouped by artist. These are verified listings, not invented official tour schedules."
       render={(tours) => <TourList tours={tours} />}
     />
   );

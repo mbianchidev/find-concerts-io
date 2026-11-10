@@ -1,11 +1,16 @@
 'use client';
 
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import type { Artist } from '@/types';
 import { useApp } from './AppProvider';
 import Icon from './Icon';
 
 export default function ArtistCard({ artist }: { artist: Artist }) {
+  const search = useSearchParams();
+  const query = new URLSearchParams(search);
+  query.delete('page');
+  query.set('artist', artist.name);
   const { saves, toggleSaved, ready, pending } = useApp();
   const followed = saves.some(
     (item) => item.type === 'artist' && item.id === artist.id
@@ -32,10 +37,7 @@ export default function ArtistCard({ artist }: { artist: Artist }) {
           {artist.upcoming_event_count} listed{' '}
           {artist.upcoming_event_count === 1 ? 'show' : 'shows'}
         </p>
-        <Link
-          href={`/?artist=${encodeURIComponent(artist.name)}#shows`}
-          className="show-link"
-        >
+        <Link href={`/?${query}#shows`} className="show-link">
           Find shows <Icon name="arrow" />
         </Link>
       </div>

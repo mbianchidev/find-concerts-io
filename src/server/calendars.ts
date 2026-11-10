@@ -6,6 +6,7 @@ import { artistKey, venueKey } from '@/lib/concerts';
 import { eventSchema, isWebUrl, venueSchema } from '@/lib/schema';
 import { AppError } from './errors';
 import { parseConcertDate } from './imports';
+import { extractPagePhoto, supportedImage } from './images';
 
 export interface CalendarSource {
   id: string;
@@ -170,7 +171,8 @@ function calendarEvent(
   date: string,
   lineup: string[],
   url: string,
-  genres: string[]
+  genres: string[],
+  image?: string
 ): Event {
   return eventSchema.parse({
     id: `source:${createHash('sha256').update(`${url}|${date}|${venue.id}`).digest('hex').slice(0, 40)}`,
@@ -188,6 +190,8 @@ function calendarEvent(
     lineup: [...new Set(lineup)],
     genres,
     url,
+    image_url: image,
+    image_kind: image ? 'event' : undefined,
     description: `Listed by ${source.name} at ${venue.name}, ${venue.city}. The calendar supplies the date, not a confirmed start time. Check the original listing with the venue before booking.`,
     source: {
       id: source.id,
@@ -360,7 +364,16 @@ export function parseMetalAgendaPage(
         return;
       }
       result.events.push(
-        calendarEvent(source, venue, title, date, lineup, href, ['Metal'])
+        calendarEvent(
+          source,
+          venue,
+          title,
+          date,
+          lineup,
+          href,
+          ['Metal'],
+          extractPagePhoto($.html(element), url).image_url
+        )
       );
     });
   return result;
@@ -371,6 +384,9 @@ const germanRecord = z.object({
   title: z.string().min(1).max(1000),
   billing: z.string().max(10000).nullable(),
   link: z.string().max(2048),
+  image: z.unknown().optional(),
+  image_url: z.unknown().optional(),
+  poster: z.unknown().optional(),
   location: z.object({
     name: z.string().min(1).max(1000),
     city: z.string().max(500),
@@ -507,7 +523,10 @@ export function parseMetalDeCalendar(
       date,
       lineup,
       row.link,
-      genres
+      genres,
+      supportedImage(row.image_url, row.link) ||
+        supportedImage(row.image, row.link) ||
+        supportedImage(row.poster, row.link)
     );
     events.set(event.id, event);
   }

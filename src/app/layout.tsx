@@ -1,9 +1,10 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import Link from 'next/link';
 import AppProvider from '@/components/AppProvider';
 import Header from '@/components/Header';
 import { AppNotice } from '@/components/Ui';
 import Telemetry from '@/components/Telemetry';
+import { THEME_COLORS, THEME_SCRIPT } from '@/lib/theme';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -24,13 +25,20 @@ export const metadata: Metadata = {
   icons: { icon: '/mark.svg', apple: '/mark.svg' },
 };
 
+export const viewport: Viewport = {
+  themeColor: THEME_COLORS.dark,
+};
+
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" data-theme="dark" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
       <body>
         <AppProvider>
           <Telemetry />

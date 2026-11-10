@@ -181,7 +181,11 @@ export default async function EventPage({
           {event.image_url ? (
             <Image
               src={event.image_url}
-              alt={`Venue poster for ${event.title}`}
+              alt={
+                event.image_kind === 'venue'
+                  ? `${event.venue.name} venue`
+                  : `Artwork for ${event.title}`
+              }
               fill
               sizes="(max-width: 800px) 90vw, 40vw"
               priority

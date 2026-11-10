@@ -1,0 +1,30 @@
+{
+  "pageOrigins": [
+    "https://www.theunderworldcamden.co.uk",
+    "https://www.ourblackheart.com",
+    "https://www.metal.de",
+    "https://www.metalagenda.nl",
+    "https://www.melkweg.nl",
+    "https://www.paradiso.nl",
+    "https://patronaat.nl",
+    "https://ekko.nl",
+    "https://occii.org"
+  ],
+  "imageHosts": [
+    "dice-media.imgix.net",
+    "images.squarespace-cdn.com",
+    "static1.squarespace.com",
+    "www.theunderworldcamden.co.uk",
+    "www.ourblackheart.com",
+    "www.metal.de",
+    "static.metal.de",
+    "www.metalagenda.nl",
+    "www.melkweg.nl",
+    "assets.melkweg.nl",
+    "www.paradiso.nl",
+    "assets.paradiso.nl",
+    "patronaat.nl",
+    "ekko.nl",
+    "occii.org"
+  ]
+}

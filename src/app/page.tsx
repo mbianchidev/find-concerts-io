@@ -7,13 +7,18 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { z } from 'zod';
 import { useApp } from '@/components/AppProvider';
 import EventList from '@/components/EventList';
+import ConcertSort from '@/components/ConcertSort';
 import GenreFilters from '@/components/GenreFilters';
 import Icon from '@/components/Icon';
 import SearchBar from '@/components/SearchBar';
 import { AccountGate, ErrorState, LoadingGrid, Pager } from '@/components/Ui';
 import { useApiData, useApiPage } from '@/lib/api';
-import { eventSchema, sourceStatusSchema } from '@/lib/schema';
-import { formatDate } from '@/lib/utils';
+import {
+  eventSchema,
+  searchFiltersSchema,
+  sourceStatusSchema,
+} from '@/lib/schema';
+import { formatDate, localCalendarDate } from '@/lib/utils';
 
 const sourcesSchema = z.array(sourceStatusSchema);
 
@@ -22,17 +27,12 @@ function Discovery() {
   const router = useRouter();
   const { user, ready } = useApp();
   const view = params.get('view') || 'all';
-  const genre = params.get('genre') || undefined;
-  const filters = {
-    artist: params.get('artist') || undefined,
-    location: params.get('location') || undefined,
-    city: params.get('city') || undefined,
-    date: params.get('date') || undefined,
-    genre,
-  };
+  const filters = searchFiltersSchema.parse(Object.fromEntries(params));
+  const { genre } = filters;
   const query = new URLSearchParams({
     page: params.get('page') || '1',
     limit: '12',
+    today: localCalendarDate(),
   });
   Object.entries(filters).forEach(([key, value]) => {
     if (value) query.set(key, value);
@@ -104,30 +104,19 @@ function Discovery() {
           </div>
         </section>
         <SearchBar
-          key={[
-            filters.artist,
-            filters.city,
-            filters.location,
-            filters.date,
-          ].join('|')}
+          key={JSON.stringify(filters)}
           initial={filters}
+          venues={results.data?.meta.venues}
+          venuesPending={results.isFetching}
           onSearch={(next) =>
-            update(
-              Object.keys(next).length
-                ? {
-                    artist: next.artist,
-                    location: next.location,
-                    city: next.city,
-                    date: next.date,
-                  }
-                : {
-                    artist: undefined,
-                    location: undefined,
-                    city: undefined,
-                    date: undefined,
-                    genre: undefined,
-                  }
-            )
+            update({
+              ...Object.fromEntries(
+                Object.keys(filters).map((key) => [key, undefined])
+              ),
+              ...next,
+              genre: Object.keys(next).length ? genre : undefined,
+              sort: Object.keys(next).length ? filters.sort : undefined,
+            })
           }
         />
         <GenreFilters
@@ -148,41 +137,58 @@ function Discovery() {
                     ? filters.city || filters.location
                       ? `Trending around ${filters.city || filters.location}.`
                       : "On the scene's radar."
-                    : 'Good nights ahead.'}
+                    : filters.period === 'past'
+                      ? 'Good nights gone by.'
+                      : filters.period === 'today'
+                        ? 'Tonight starts here.'
+                        : 'Find your next show.'}
               </h2>
               <p className="result-count" role="status">
                 {results.data
-                  ? `${results.data.meta.total} ${results.data.meta.total === 1 ? 'show' : 'shows'}${view === 'trending' ? ' ranked by real account saves' : ' from venue and specialist calendars'}`
+                  ? `${results.data.meta.total} ${results.data.meta.total === 1 ? 'show' : 'shows'}${view === 'trending' ? (filters.sort ? ' with account saves' : ' ranked by real account saves') : ' from venue and specialist calendars'}`
                   : view === 'for-you' && !user
                     ? 'Personal recommendations, without the noise.'
                     : 'Finding the next good night...'}
               </p>
             </div>
-            <div
-              className="filter-segments"
-              role="group"
-              aria-label="Concert view"
-            >
-              <button
-                aria-pressed={view === 'all'}
-                onClick={() => update({ view: undefined })}
+            <div className="listing-controls">
+              <ConcertSort
+                value={filters.sort}
+                onChange={(sort) => update({ sort })}
+                rankedLabel={
+                  view === 'trending'
+                    ? 'Most saved'
+                    : view === 'for-you'
+                      ? 'Recommended'
+                      : undefined
+                }
+              />
+              <div
+                className="filter-segments"
+                role="group"
+                aria-label="Concert view"
               >
-                All shows
-              </button>
-              <button
-                aria-pressed={view === 'for-you'}
-                onClick={() => update({ view: 'for-you' })}
-              >
-                <Icon name="bookmark" />
-                For you
-              </button>
-              <button
-                aria-pressed={view === 'trending'}
-                onClick={() => update({ view: 'trending' })}
-              >
-                <Icon name="bolt" />
-                Trending
-              </button>
+                <button
+                  aria-pressed={view === 'all'}
+                  onClick={() => update({ view: undefined })}
+                >
+                  All shows
+                </button>
+                <button
+                  aria-pressed={view === 'for-you'}
+                  onClick={() => update({ view: 'for-you' })}
+                >
+                  <Icon name="bookmark" />
+                  For you
+                </button>
+                <button
+                  aria-pressed={view === 'trending'}
+                  onClick={() => update({ view: 'trending' })}
+                >
+                  <Icon name="bolt" />
+                  Trending
+                </button>
+              </div>
             </div>
           </div>
           {view === 'for-you' && !user ? (
