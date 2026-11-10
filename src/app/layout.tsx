@@ -39,7 +39,8 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
-      <body>
+      {/* Browser extensions can add body attributes before hydration. */}
+      <body suppressHydrationWarning>
         <AppProvider>
           <Telemetry />
           <Header />

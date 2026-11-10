@@ -74,6 +74,9 @@ cover discovery, directories, details, imports, and account settings in both
 themes. A small head script applies an explicitly saved light preference before
 paint. The accessible header toggle persists locally, synchronizes open tabs,
 updates browser chrome, and reports blocked storage without breaking the toggle.
+The root body tolerates attributes added by browser extensions before hydration.
+This exception is limited to the body element; descendant hydration mismatches
+remain visible.
 
 Calendar exports escape and fold iCalendar text, preserve time offsets, use
 exclusive all-day end dates, and reject unconfirmed dates. Private attendance
