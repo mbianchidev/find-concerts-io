@@ -1,4 +1,4 @@
-const CACHE = 'find-concerts-public-shell-v2';
+const CACHE = 'find-concerts-public-shell-v3';
 const scope = new URL(self.registration.scope);
 const offline = new URL('offline.html', scope).href;
 
