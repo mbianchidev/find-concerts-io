@@ -12,7 +12,8 @@ const nextConfig = {
     '@sentry/node',
   ],
   images: {
-    maximumRedirects: 0,
+    maximumRedirects: 3,
+    dangerouslyAllowLocalIP: false,
     remotePatterns: imageSources.imageHosts.map((hostname) => ({
       protocol: 'https',
       hostname,

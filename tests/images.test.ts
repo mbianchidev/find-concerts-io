@@ -1,5 +1,9 @@
 import assert from 'node:assert/strict';
+import { once } from 'node:events';
+import { createServer } from 'node:http';
 import test from 'node:test';
+import { fetchExternalImage } from 'next/dist/server/image-optimizer';
+import nextConfig from '../next.config';
 import {
   enrichConcertImages,
   extractPagePhoto,
@@ -201,3 +205,69 @@ test('a metadata-only refresh preserves existing public artwork', () => {
     store.close();
   }
 });
+
+test(
+  'image optimization follows CDN redirects, limits loops, and blocks private-network requests',
+  { timeout: 10000 },
+  async () => {
+    const image = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==',
+      'base64'
+    );
+    let imageRequests = 0;
+    let loopRequests = 0;
+    const server = createServer((request, response) => {
+      if (request.url === '/legacy-poster.jpg') {
+        response.writeHead(301, { location: '/poster.png' }).end();
+      } else if (request.url === '/poster.png') {
+        imageRequests++;
+        response.writeHead(200, { 'content-type': 'image/png' }).end(image);
+      } else if (request.url === '/loop') {
+        loopRequests++;
+        if (loopRequests > 4) response.writeHead(500).end();
+        else response.writeHead(302, { location: '/loop' }).end();
+      } else {
+        response.writeHead(404).end();
+      }
+    });
+    server.listen(0, '127.0.0.1');
+    await once(server, 'listening');
+    try {
+      const address = server.address();
+      assert.ok(address && typeof address !== 'string');
+      const upstream = `http://127.0.0.1:${address.port}`;
+      const limit = nextConfig.images?.maximumRedirects ?? 3;
+      const maximumBody = 1024;
+      // Only the synthetic upstream is allowed to use a loopback address.
+      const result = await fetchExternalImage(
+        `${upstream}/legacy-poster.jpg`,
+        true,
+        maximumBody,
+        limit
+      );
+      assert.deepEqual(result.buffer, image);
+      assert.equal(result.contentType, 'image/png');
+      await assert.rejects(
+        fetchExternalImage(`${upstream}/loop`, true, maximumBody, limit),
+        { statusCode: 508 }
+      );
+      assert.equal(loopRequests, limit + 1);
+      const fetched = imageRequests;
+      await assert.rejects(
+        fetchExternalImage(
+          `${upstream}/poster.png`,
+          nextConfig.images?.dangerouslyAllowLocalIP ?? false,
+          maximumBody,
+          limit
+        ),
+        { statusCode: 400 }
+      );
+      assert.equal(imageRequests, fetched);
+    } finally {
+      const closed = once(server, 'close');
+      server.close();
+      server.closeAllConnections();
+      await closed;
+    }
+  }
+);

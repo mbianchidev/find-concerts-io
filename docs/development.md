@@ -76,6 +76,10 @@ concert collection. Up to 80 additional photo pages are read per run; cached
 lookups let subsequent runs progress without repeatedly downloading known photos.
 New imagery appears after the next collection, or an explicitly queued refresh.
 
+Image optimization allows up to three redirects so existing Squarespace URLs
+can reach their CDN. Private IPs stay blocked at every hop. This fixes rendering
+without re-scraping or rewriting saved concert records.
+
 Cheerio's `encoding-sniffer` dependency is overridden to the compatible 1.x API,
 which uses `@exodus/bytes` instead of deprecated `whatwg-encoding`. UTF-8,
 Windows-1252, and stream-decoding regressions cover the override. Revisit it when

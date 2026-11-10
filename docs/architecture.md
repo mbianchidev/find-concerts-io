@@ -122,9 +122,13 @@ posters, and Open Graph/Twitter metadata. Missing calendar artwork is enriched
 from explicitly curated event/tour pages, then reused headliner photos, then an
 official venue photo. Venue fallback imagery is not reused as artist imagery.
 `src/lib/image-sources.json` is shared by extraction and Next Image, so an accepted
-host is also renderable. Photo-page origins are separately curated; image
-redirects are disabled. Private imports never trigger these requests.
-Reads share the collection's robots policies, delays, and blocked-origin state.
+host is also renderable. Photo-page origins are separately curated. Image
+optimization follows at most three redirects so legacy Squarespace URLs reach
+their CDN. Private IPs remain blocked at every hop, with DNS results pinned to
+prevent rebinding. Next applies the host allowlist to the initial URL, not redirect
+destinations. Private imports never trigger photo-page collection.
+Photo-page requests share the collection's robots policies, delays, and
+blocked-origin state.
 The run adds at most 80 photo content-page lookups, deduplicates URLs, and caches
 successful images for seven days or empty metadata for one day. Lookup failures
 are surfaced as collection warnings without erasing concerts or existing photos;
