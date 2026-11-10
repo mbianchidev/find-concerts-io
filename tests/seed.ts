@@ -42,6 +42,7 @@ try {
       lineup: ['Synthetic Voltage', 'Mock Support'],
       genres: ['Metal'],
       datetime: future(30),
+      venue: { ...concert().venue, latitude: '12.5', longitude: '-45.5' },
     }),
     concert({
       id: 'source:synthetic-punk',

@@ -20,6 +20,7 @@ City options include persistent public venues, even with no upcoming concerts.
 | `/events/:id`                         | GET               | Public or owner-authorized detail                                                       |
 | `/events/:id/calendar`                | GET               | Owner-aware `.ics` download                                                             |
 | `/events/:id/similar`                 | GET               | Similar upcoming public concerts                                                        |
+| `/events/:id/location`                | GET               | Listing coordinates or a cached public venue lookup; private imports are rejected       |
 | `/artists`, `/tours`                  | GET               | Derived public directories                                                              |
 | `/venues`                             | GET               | Persistent public venues and filtered upcoming counts; `saved=true` requires an account |
 | `/cities`                             | GET               | Public city facet; never includes private import locations                              |
@@ -100,6 +101,26 @@ no local start time or UTC offset is invented.
 Optional `image_kind: "event" | "artist" | "venue"` distinguishes concert/tour
 artwork, reused headliner imagery, and a venue-photo fallback. Photos are public
 source URLs, not uploaded copies or fabricated artwork.
+
+`GET /events/:id/location` returns
+`{ data: { latitude: number, longitude: number } }`. Known listing coordinates
+need no provider request. Otherwise the endpoint matches the public venue against
+Nominatim by name, city, country, and place category. It never substitutes a city
+centre or selects one of several different matching places.
+
+Location lookups are triggered by the concert-detail **Show venue map** button,
+not by page rendering. The provider limit is one request per second across the
+application, including separate processes sharing SQLite. Positive results are
+cached for 30 days; missing and ambiguous matches for one day. Upstream
+`Retry-After` cooldowns are respected. Cached results do not consume the provider
+quota. The endpoint does not accept arbitrary location search text.
+
+Missing/incomplete/ambiguous venue information returns 422, disabled geocoding
+returns 503, and provider failures return 502 or 503. Requests for an owner's
+private import return 403 without contacting the provider; unauthorized private
+IDs still return 404. `NOMINATIM_ENDPOINT` selects a compatible service, with an
+empty value disabling new lookups. The [Nominatim usage policy](https://operations.osmfoundation.org/policies/nominatim/)
+applies when using the default public service.
 
 Mutations require an `Origin` equal to `APP_ORIGIN`. JSON mutations require
 `application/json`; imports require multipart forms. Session cookies are

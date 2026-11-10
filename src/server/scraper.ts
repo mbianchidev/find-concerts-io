@@ -10,7 +10,7 @@ import { parseConcertDate } from './imports';
 import { logger } from './logger';
 import { eventSchema } from '@/lib/schema';
 import type { ConcertStore } from './store';
-import { readLimitedBody } from './http';
+import { APP_USER_AGENT as USER_AGENT, readLimitedBody } from './http';
 import {
   enrichConcertImages,
   extractPagePhoto,
@@ -66,8 +66,6 @@ export const SOURCES: ConcertSource[] = [
 
 const COLLECTION_SOURCES = [...SOURCES, ...CALENDAR_SOURCES];
 
-const USER_AGENT =
-  'FindConcertsIO/1.0 (+https://github.com/mbianchidev/find-concerts-io)';
 const MAX_PAGE_BYTES = 3 * 1024 * 1024;
 const MAX_PAGES = 40;
 const MAX_PHOTO_PAGES = 80;

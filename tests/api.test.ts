@@ -438,6 +438,92 @@ test('similar concert lists honor the same city filter as discovery', async () =
   }
 });
 
+test('venue-location responses resolve public listings without exposing private import locations', async (context) => {
+  const previousEndpoint = process.env.NOMINATIM_ENDPOINT;
+  process.env.NOMINATIM_ENDPOINT = 'https://geocoder.example.test/search';
+  context.after(() => {
+    if (previousEndpoint === undefined) delete process.env.NOMINATIM_ENDPOINT;
+    else process.env.NOMINATIM_ENDPOINT = previousEndpoint;
+  });
+  const store = new ConcertStore(':memory:');
+  let lookups = 0;
+  context.mock.method(
+    globalThis,
+    'fetch',
+    async (input: string | URL | Request) => {
+      lookups++;
+      const url = new URL(String(input));
+      assert.equal(
+        url.searchParams.get('q'),
+        'Fictional Room, Example City, Test Country'
+      );
+      return Response.json([
+        {
+          name: 'Fictional Room',
+          lat: '12.5',
+          lon: '-45.5',
+          category: 'amenity',
+          address: { city: 'Example City', country: 'Test Country' },
+        },
+      ]);
+    }
+  );
+  try {
+    store.upsertPublic([
+      concert({
+        id: 'mapped-show',
+        venue: { ...concert().venue, latitude: '12.5', longitude: '-45.5' },
+      }),
+      concert({ id: 'unmapped-show' }),
+    ]);
+    const known = await handleApi(
+      request('/events/mapped-show/location'),
+      store
+    );
+    assert.equal(known.status, 200);
+    assert.deepEqual((await known.json()).data, {
+      latitude: 12.5,
+      longitude: -45.5,
+    });
+    assert.equal(lookups, 0);
+    const resolved = await handleApi(
+      request('/events/unmapped-show/location'),
+      store
+    );
+    assert.equal(resolved.status, 200);
+    assert.deepEqual((await resolved.json()).data, {
+      latitude: 12.5,
+      longitude: -45.5,
+    });
+    assert.equal(lookups, 1);
+    const owner = store.createUser('synthetic-map-owner', 'synthetic-hash');
+    store.importEvents(owner.id, {
+      events: [
+        concert({ venue: { ...concert().venue, name: 'Private Test Hall' } }),
+      ],
+      report: { total: 1, imported: 0, duplicates: 0, skipped: 0, issues: [] },
+    });
+    const id = store.events(owner.id, true)[0].id;
+    const cookie = sessionCookie(store, owner.id).split(';')[0];
+    assert.equal(
+      (
+        await handleApi(
+          request(`/events/${id}/location`, 'GET', undefined, cookie),
+          store
+        )
+      ).status,
+      403
+    );
+    assert.equal(
+      (await handleApi(request(`/events/${id}/location`), store)).status,
+      404
+    );
+    assert.equal(lookups, 1);
+  } finally {
+    store.close();
+  }
+});
+
 test('rate limits survive requests with forged forwarding headers by default', () => {
   const store = new ConcertStore(':memory:');
   try {

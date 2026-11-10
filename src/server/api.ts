@@ -43,6 +43,7 @@ import { sourceStatuses } from './scraper';
 import { ConcertStore, getStore } from './store';
 import { spotifyClient, TicketmasterClient } from './providers';
 import { readLimitedBody } from './http';
+import { resolveVenueLocation } from './venue-location';
 
 const pagination = searchFiltersSchema.safeExtend({
   page: z.coerce.number().int().min(1).max(10000).default(1),
@@ -292,7 +293,9 @@ async function route(request: Request, store: ConcertStore): Promise<Response> {
       events = trendingEvents(events, filters.location, filters.today);
     return eventPage(events, filters, 'upcoming', filters.view === 'trending');
   }
-  const eventRoute = /^events\/([^/]+)(?:\/(calendar|similar))?$/.exec(path);
+  const eventRoute = /^events\/([^/]+)(?:\/(calendar|similar|location))?$/.exec(
+    path
+  );
   if (eventRoute && method === 'GET') {
     const event = store.event(
       decodeURIComponent(eventRoute[1]),
@@ -304,6 +307,8 @@ async function route(request: Request, store: ConcertStore): Promise<Response> {
         'EVENT_NOT_FOUND',
         'This concert is unavailable or belongs to another account.'
       );
+    if (eventRoute[2] === 'location')
+      return data(await resolveVenueLocation(event, store));
     if (eventRoute[2] === 'calendar') {
       if (!event.datetime)
         throw new AppError(

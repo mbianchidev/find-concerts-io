@@ -7,6 +7,11 @@ export interface Venue {
   country: string;
 }
 
+export interface VenueCoordinates {
+  latitude: number;
+  longitude: number;
+}
+
 export interface EventSource {
   id: string;
   name: string;

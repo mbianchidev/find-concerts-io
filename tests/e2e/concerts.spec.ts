@@ -304,6 +304,113 @@ test('theme changes report blocked preference storage instead of silently claimi
   ).toBeVisible();
 });
 
+test('venue maps load only on request, keep the correct pin, and support keyboard show/hide', async ({
+  page,
+}) => {
+  const maps: string[] = [];
+  let lookups = 0;
+  await page.route(/\/api\/v1\/events\/[^/]+\/location\/?$/, async (route) => {
+    lookups++;
+    await route.fulfill({
+      status: 500,
+      json: {
+        error: {
+          code: 'UNEXPECTED_LOOKUP',
+          message: 'Listing coordinates should be used.',
+        },
+      },
+    });
+  });
+  await page.route(
+    'https://www.openstreetmap.org/export/embed.html?**',
+    async (route) => {
+      maps.push(route.request().url());
+      await route.fulfill({
+        contentType: 'text/html',
+        body: '<!doctype html><title>Synthetic map</title><p>Synthetic map provider</p>',
+      });
+    }
+  );
+  await page.goto('/events/source%3Asynthetic-metal/');
+  const map = page.getByTitle('Venue map for Fictional Room', { exact: true });
+  await expect(map).toHaveCount(0);
+  expect(maps).toHaveLength(0);
+  const show = page.getByRole('button', {
+    name: 'Show venue map',
+    exact: true,
+  });
+  await expect(show).toBeVisible();
+  await show.focus();
+  await page.keyboard.press('Enter');
+  await expect(map).toBeVisible();
+  await expect.poll(() => maps.length).toBe(1);
+  expect(new URL(maps[0]).searchParams.get('marker')).toBe('12.5,-45.5');
+  await expect(map).toHaveAttribute('referrerpolicy', 'no-referrer');
+  await expect(
+    page.getByRole('link', { name: 'OpenStreetMap contributors', exact: true })
+  ).toBeVisible();
+  const hide = page.getByRole('button', {
+    name: 'Hide venue map',
+    exact: true,
+  });
+  await expect(hide).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(map).toHaveCount(0);
+  expect(lookups).toBe(0);
+});
+
+test('missing venue coordinates have a recoverable lookup error without showing an invented pin', async ({
+  page,
+}) => {
+  let lookups = 0;
+  await page.route(/\/api\/v1\/events\/[^/]+\/location\/?$/, async (route) => {
+    lookups++;
+    if (lookups === 1) {
+      await route.fulfill({
+        status: 503,
+        json: {
+          error: {
+            code: 'VENUE_PROVIDER_REJECTED',
+            message: 'Venue lookup is temporarily unavailable.',
+          },
+        },
+      });
+    } else {
+      await route.fulfill({
+        json: { data: { latitude: 13.5, longitude: -46.5 } },
+      });
+    }
+  });
+  await page.route(
+    'https://www.openstreetmap.org/export/embed.html?**',
+    (route) =>
+      route.fulfill({
+        contentType: 'text/html',
+        body: '<!doctype html><title>Synthetic map</title><p>Synthetic map provider</p>',
+      })
+  );
+  await page.goto('/events/source%3Asynthetic-punk/');
+  expect(lookups).toBe(0);
+  const show = page.getByRole('button', {
+    name: 'Show venue map',
+    exact: true,
+  });
+  await show.focus();
+  await page.keyboard.press('Enter');
+  await expect(
+    page
+      .getByRole('alert')
+      .filter({ hasText: 'Venue lookup is temporarily unavailable.' })
+  ).toBeVisible();
+  await expect(page.locator('iframe')).toHaveCount(0);
+  await expect(show).toBeFocused();
+  await page.keyboard.press('Enter');
+  const map = page.getByTitle('Venue map for Fictional Room', { exact: true });
+  await expect(map).toBeVisible();
+  await expect(map).toHaveAttribute('src', /marker=13\.5%2C-46\.5/);
+  expect(lookups).toBe(2);
+});
+
 test('account follows and saves survive reload and drive recommendations and calendar export', async ({
   page,
 }) => {
@@ -418,6 +525,12 @@ test('synthetic XLSX imports stay private, persist, and never leak to public pag
   await expect(page.locator('script[type="application/ld+json"]')).toHaveCount(
     0
   );
+  await expect(
+    page.getByRole('button', { name: 'Show venue map', exact: true })
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole('link', { name: 'Open OpenStreetMap', exact: true })
+  ).toHaveAttribute('href', /^https:\/\/www\.openstreetmap\.org\/?$/);
   const privateUrl = page.url();
   const feed = await page.request.get('/api/v1/events/?past=true&limit=100');
   expect(await feed.text()).not.toContain(title);

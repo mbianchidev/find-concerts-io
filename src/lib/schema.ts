@@ -9,7 +9,9 @@ import type {
   Tour,
   User,
   VenueData,
+  VenueCoordinates,
 } from '@/types';
+import { MAP_LATITUDE_LIMIT } from './maps';
 
 export function isWebUrl(value: string): boolean {
   try {
@@ -29,6 +31,11 @@ const link = z
   .max(2048)
   .refine((value) => !value || isWebUrl(value), 'Use an HTTP or HTTPS URL.');
 const fieldValue = z.union([z.string(), z.number(), z.boolean(), z.null()]);
+
+export const venueCoordinatesSchema: z.ZodType<VenueCoordinates> = z.object({
+  latitude: z.number().min(-MAP_LATITUDE_LIMIT).max(MAP_LATITUDE_LIMIT),
+  longitude: z.number().min(-180).max(180),
+});
 
 export const searchFiltersSchema = z
   .object({

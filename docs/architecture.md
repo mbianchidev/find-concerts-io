@@ -82,6 +82,14 @@ Calendar exports escape and fold iCalendar text, preserve time offsets, use
 exclusive all-day end dates, and reject unconfirmed dates. Private attendance
 plans and workbook notes are not included in calendar links.
 
+Concert details include a load-on-demand OpenStreetMap venue map with a marker,
+native pan/zoom controls, and attribution. Listing coordinates are used first.
+Missing public locations use a server-side Nominatim lookup only after a click,
+with an application-wide one-request-per-second limit shared through SQLite.
+Name, city, country, and place category must match; ambiguous results never become
+pins. Positive and negative results use the existing persistent cache. The map
+keeps private imports out of both geocoding and embedded maps.
+
 ## Collection and jobs
 
 `scripts/server.ts` starts Next and the worker together for both `npm run dev`
