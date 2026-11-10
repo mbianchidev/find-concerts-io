@@ -24,6 +24,11 @@ Ambiguous slash dates require a chosen day-first or month-first mapping.
 Uncertain text and missing dates remain unconfirmed, with their original text
 preserved and an explicit warning. No placeholder date or venue is fabricated.
 
+Past imports also appear in **My shows > Archive**, even without a bookmark.
+Set Interested, Going, Went, or Didn't go there without changing original
+attendance wording or other cells. Dates never imply that you attended.
+See [Saved shows and archive](saved-concerts.md) for status and privacy behavior.
+
 Year-only section headings, including numeric year cells, are reported as
 skipped. Blank rows inside the data range are reported as skipped; entirely
 empty trailing spreadsheet rows are outside the parser's data-row count.

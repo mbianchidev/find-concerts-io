@@ -134,11 +134,29 @@ export const profileUpdateSchema = z
     'Choose at least one profile field to update.'
   );
 
-export const savedItemSchema: z.ZodType<SavedItem> = z.object({
-  id: z.string(),
-  type: z.enum(['event', 'artist', 'venue']),
-  addedAt: z.string(),
-});
+export const savedConcertStatusSchema = z.enum([
+  'interested',
+  'going',
+  'went',
+  'not_going',
+]);
+
+export const savedItemSchema: z.ZodType<SavedItem> = z
+  .object({
+    id: z.string(),
+    type: z.enum(['event', 'artist', 'venue']),
+    addedAt: z.string(),
+    status: savedConcertStatusSchema.optional(),
+  })
+  .refine((item) => item.type === 'event' || item.status === undefined, {
+    message: 'Attendance statuses only apply to concerts.',
+    path: ['status'],
+  })
+  .transform((item) =>
+    item.type === 'event'
+      ? { ...item, status: item.status ?? 'interested' }
+      : item
+  );
 
 export const notificationSchema: z.ZodType<Notification> = z.object({
   id: z.string(),

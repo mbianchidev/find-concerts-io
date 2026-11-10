@@ -94,10 +94,13 @@ export interface SearchFilters {
   genre?: string;
 }
 
+export type SavedConcertStatus = 'interested' | 'going' | 'went' | 'not_going';
+
 export interface SavedItem {
   id: string;
   type: 'event' | 'artist' | 'venue';
   addedAt: string;
+  status?: SavedConcertStatus;
 }
 
 export interface User {

@@ -32,6 +32,14 @@ export default function PrivacyPage() {
           notifications only after ownership is confirmed. No payment
           information or social-login data is collected.
         </p>
+        <p>
+          Interested, Going, Went, and Didn&apos;t go are private saved-show
+          statuses. Your archive also includes your past private imports. Dates
+          never imply attendance, and original workbook fields stay unchanged.
+          Statuses are included in your account export and removed when you
+          remove the bookmark or delete your account, never shared with concert
+          or calendar providers.
+        </p>
         <h2 style={{ marginTop: 25 }}>Cookies and browser storage</h2>
         <p>
           The essential HttpOnly session cookie expires after 30 days and is

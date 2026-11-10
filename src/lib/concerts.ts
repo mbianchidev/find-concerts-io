@@ -1,6 +1,7 @@
 import type {
   Artist,
   Event,
+  SavedConcertStatus,
   SavedItem,
   SearchFilters,
   Tour,
@@ -9,6 +10,13 @@ import type {
 } from '@/types';
 
 export const GENRES = ['Metal', 'Hardcore punk', 'Rock', 'Punk'] as const;
+
+export const SAVED_CONCERT_STATUS_LABELS: Record<SavedConcertStatus, string> = {
+  interested: 'Interested',
+  going: 'Going',
+  went: 'Went',
+  not_going: "Didn't go",
+};
 
 export function artistKey(name: string): string {
   return name.trim().normalize('NFKC').toLowerCase().replace(/\s+/g, ' ');
@@ -92,6 +100,29 @@ export function sortEvents(
       : dateOrder(a, b, sort === 'date_desc' ? -1 : 1);
     return primary || dateOrder(a, b) || bandOrder || a.id.localeCompare(b.id);
   });
+}
+
+export function filterSavedEvents(
+  events: Event[],
+  saves: SavedItem[],
+  status?: SavedConcertStatus,
+  includeImports = false
+): Event[] {
+  const saved = new Map(
+    saves
+      .filter((item) => item.type === 'event')
+      .map((item) => [item.id, item.status ?? 'interested'])
+  );
+  const selected = new Map<string, Event>();
+  for (const event of events) {
+    const savedStatus = saved.get(event.id);
+    if (
+      (savedStatus || (includeImports && event.is_private)) &&
+      (!status || savedStatus === status)
+    )
+      selected.set(event.id, event);
+  }
+  return [...selected.values()];
 }
 
 export function collectArtists(events: Event[]): Artist[] {

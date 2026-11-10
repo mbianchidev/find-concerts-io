@@ -12,6 +12,12 @@ structured data, sitemaps, test fixtures, builds, or provider searches.
 No private workbook file is retained after upload. Server-console tools must
 only process owner-provided paths and must not publish the source file.
 
+Personal attendance statuses are account-private saved metadata, not public
+concert fields. The archive combines owned past imports and saved shows; it does
+not infer attendance or rewrite workbook fields. Guest statuses remain in browser
+storage. Statuses are included in the owner's account export and removed with
+their bookmark or account, never sent to calendar, venue, or music providers.
+
 Display name, location, and bio are optional account-private profile fields.
 They are included only in the owner's session/profile/export responses and
 removed on account deletion, never sent to venue or music-provider searches.

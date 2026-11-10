@@ -1223,6 +1223,45 @@ label {
 .app-notice {
   margin-bottom: 0;
 }
+.saved-controls,
+.saved-views {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.saved-controls {
+  align-items: end;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+.saved-views {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.saved-concert-status,
+.saved-status-filter {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.saved-concert-status {
+  margin-block: 16px;
+}
+.saved-status-filter {
+  min-width: 180px;
+}
+.saved-concert-status select,
+.saved-status-filter select {
+  min-height: 44px;
+  font-size: 16px;
+  padding: 10px 12px;
+}
+.detail-saved-status {
+  max-width: 320px;
+}
 .account-grid,
 .import-layout,
 .saved-layout {

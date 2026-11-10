@@ -37,6 +37,15 @@ empty room can still be followed and receive notifications when a new gig arrive
 Verified publisher aliases share one identity; arbitrary similar names are not
 automatically merged.
 
+Schema v4 adds a checked personal attendance status to saved rows, preserving
+bookmark timestamps and defaulting existing concert saves to Interested. It does
+not rewrite public concert status or original workbook fields. The archive unions
+saved shows with owned private imports, deduplicates identities, and applies past
+dates and personal-status filters before pagination. Guest lists fetch public
+metadata in bounded ID batches before the same filtering and sorting. Attendance
+is never inferred from a date. Late save responses are ignored after an account
+switch rather than repopulating a different account's cache.
+
 Public concert rows have no owner. Imported rows have an account owner and a
 separate ID namespace. Public listings, public artist/venue directories,
 trending, sitemaps, and structured data never include imports. Every private

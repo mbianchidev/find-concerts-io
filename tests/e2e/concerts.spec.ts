@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import writeXlsxFile from 'write-excel-file/node';
+import { concert } from '../fixtures';
 
 test.use({ timezoneId: 'UTC' });
 
@@ -411,6 +412,214 @@ test('missing venue coordinates have a recoverable lookup error without showing 
   expect(lookups).toBe(2);
 });
 
+test('saved concert statuses persist, filter the list, and recover from a rejected update', async ({
+  page,
+}) => {
+  await register(page);
+  await page.goto('/');
+  await page
+    .getByRole('button', { name: 'Save Synthetic Voltage', exact: true })
+    .click();
+  await expect(
+    page.getByRole('button', { name: 'Unsave Synthetic Voltage', exact: true })
+  ).toBeVisible();
+  await page.goto('/saved/');
+  const status = page.getByLabel('Your status for Synthetic Voltage', {
+    exact: true,
+  });
+  await expect(status).toHaveValue('interested');
+  const goingSaved = page.waitForResponse(
+    (response) =>
+      response.url().endsWith('/me/saved/') &&
+      response.request().method() === 'PUT' &&
+      response.status() === 200
+  );
+  await status.selectOption('going');
+  await goingSaved;
+  await expect(status).toBeEnabled();
+  await page.reload();
+  await expect(status).toHaveValue('going');
+
+  const savedPath = '**/api/v1/me/saved/';
+  await page.route(savedPath, (route) =>
+    route.fulfill({
+      status: 503,
+      json: {
+        error: {
+          code: 'SYNTHETIC_SAVE_REJECTED',
+          message: 'Status was not saved. Try again.',
+        },
+      },
+    })
+  );
+  await status.selectOption('not_going');
+  await expect(
+    page
+      .getByRole('alert')
+      .filter({ hasText: 'Status was not saved. Try again.' })
+  ).toBeVisible();
+  await expect(status).toHaveValue('going');
+  await page.unroute(savedPath);
+  const notGoingSaved = page.waitForResponse(
+    (response) =>
+      response.url().endsWith('/me/saved/') &&
+      response.request().method() === 'PUT' &&
+      response.status() === 200
+  );
+  await status.selectOption('not_going');
+  await notGoingSaved;
+  await expect(status).toBeEnabled();
+  await page.reload();
+  await expect(status).toHaveValue('not_going');
+  await page
+    .getByLabel('Filter by status', { exact: true })
+    .selectOption('going');
+  await expect(
+    page.getByRole('link', { name: 'View Synthetic Voltage', exact: true })
+  ).toHaveCount(0);
+  await page
+    .getByLabel('Filter by status', { exact: true })
+    .selectOption('not_going');
+  await expect(
+    page.getByRole('link', { name: 'View Synthetic Voltage', exact: true })
+  ).toBeVisible();
+  expect(
+    (
+      await new AxeBuilder({ page })
+        .include('.saved-controls, .saved-concert-status')
+        .analyze()
+    ).violations
+  ).toEqual([]);
+  const goingAgain = page.waitForResponse(
+    (response) =>
+      response.url().endsWith('/me/saved/') &&
+      response.request().method() === 'PUT' &&
+      response.status() === 200
+  );
+  await status.selectOption('going');
+  await goingAgain;
+  await expect(
+    page.getByLabel('Filter by status', { exact: true })
+  ).toBeFocused();
+  await expect(
+    page.getByRole('link', { name: 'View Synthetic Voltage', exact: true })
+  ).toHaveCount(0);
+  await page
+    .getByLabel('Filter by status', { exact: true })
+    .selectOption('going');
+  await expect(status).toHaveValue('going');
+  await page.goto('/events/source%3Asynthetic-metal/');
+  await expect(status).toHaveValue('going');
+});
+
+test('guest archives filter all legacy saves before pagination and keep the last status when storage fails', async ({
+  page,
+}) => {
+  const events = Array.from({ length: 45 }, (_, index) =>
+    concert({
+      id: `synthetic-guest-${index}`,
+      title: `Synthetic Guest Show ${index}`,
+      datetime:
+        index < 30
+          ? '2099-04-03'
+          : `2000-04-${String(index - 29).padStart(2, '0')}`,
+    })
+  );
+  await page.route(/\/api\/v1\/events\/\?/, (route) => {
+    const query = new URL(route.request().url()).searchParams;
+    const ids = (query.get('ids') || '').split(',').filter(Boolean);
+    expect(ids.length).toBeLessThanOrEqual(30);
+    const matching = ids.length
+      ? events.filter((event) => ids.includes(event.id))
+      : events;
+    const limit = Number(query.get('limit') || 24);
+    const current = Number(query.get('page') || 1);
+    return route.fulfill({
+      json: {
+        data: matching.slice((current - 1) * limit, current * limit),
+        meta: {
+          total: matching.length,
+          page: current,
+          limit,
+          has_next: current * limit < matching.length,
+        },
+      },
+    });
+  });
+  await page.goto('/saved/');
+  await expect(
+    page.getByRole('heading', { name: 'No shows on this list.', exact: true })
+  ).toBeVisible();
+  await page.evaluate(
+    (items) =>
+      localStorage.setItem('find-concerts-saved', JSON.stringify(items)),
+    events.map((event) => ({
+      id: event.id,
+      type: 'event',
+      addedAt: '2020-01-01T00:00:00Z',
+    }))
+  );
+  await page.reload();
+  await expect(
+    page.getByRole('status').filter({ hasText: '45 saved concerts' })
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Archive', exact: true }).click();
+  await expect(
+    page.getByRole('status').filter({ hasText: '15 past concerts' })
+  ).toBeVisible();
+  await expect(page.locator('article.event-card')).toHaveCount(12);
+  await expect(
+    page.locator('.event-card').first().locator('.date-ticket')
+  ).toContainText('2000');
+  await expect(
+    page.getByRole('link', {
+      name: 'View Synthetic Guest Show 30',
+      exact: true,
+    })
+  ).toHaveCount(0);
+  await page.getByRole('button', { name: 'Next', exact: true }).click();
+  await expect(page.locator('article.event-card')).toHaveCount(3);
+  const status = page.getByLabel('Your status for Synthetic Guest Show 30', {
+    exact: true,
+  });
+  await expect(status).toHaveValue('interested');
+  await status.selectOption('went');
+  await page
+    .getByLabel('Filter by status', { exact: true })
+    .selectOption('went');
+  await expect(
+    page.getByRole('status').filter({ hasText: '1 past concert' })
+  ).toBeVisible();
+  await expect(status).toHaveValue('went');
+  await page.reload();
+  await expect(status).toHaveValue('went');
+  await page.getByRole('button', { name: 'Archive', exact: true }).click();
+  await page
+    .getByLabel('Filter by status', { exact: true })
+    .selectOption('went');
+  await expect(status).toHaveValue('went');
+  await page.evaluate(() => {
+    const original = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (key, value) {
+      if (key === 'find-concerts-saved')
+        throw new Error('Synthetic blocked storage');
+      original.call(this, key, value);
+    };
+  });
+  await status.selectOption('going');
+  await expect(
+    page.getByRole('alert').filter({ hasText: /browser storage/i })
+  ).toBeVisible();
+  await expect(status).toHaveValue('went');
+  await page.reload();
+  await expect(status).toHaveValue('went');
+  await page.evaluate(() => localStorage.removeItem('find-concerts-saved'));
+  await page.reload();
+  await expect(
+    page.getByRole('heading', { name: 'No shows on this list.', exact: true })
+  ).toBeVisible();
+});
+
 test('account follows and saves survive reload and drive recommendations and calendar export', async ({
   page,
 }) => {
@@ -532,6 +741,30 @@ test('synthetic XLSX imports stay private, persist, and never leak to public pag
     page.getByRole('link', { name: 'Open OpenStreetMap', exact: true })
   ).toHaveAttribute('href', /^https:\/\/www\.openstreetmap\.org\/?$/);
   const privateUrl = page.url();
+  await page.goto('/saved/');
+  await page.getByRole('button', { name: 'Archive', exact: true }).click();
+  await expect(
+    page.getByRole('link', { name: `View ${title}`, exact: true })
+  ).toBeVisible();
+  const attendance = page.getByLabel(`Your status for ${title}`, {
+    exact: true,
+  });
+  await expect(attendance).toHaveValue('');
+  const attendanceSaved = page.waitForResponse(
+    (response) =>
+      response.url().endsWith('/me/saved/') &&
+      response.request().method() === 'PUT' &&
+      response.status() === 200
+  );
+  await attendance.selectOption('went');
+  await attendanceSaved;
+  await page.reload();
+  await page.getByRole('button', { name: 'Archive', exact: true }).click();
+  await page
+    .getByLabel('Filter by status', { exact: true })
+    .selectOption('went');
+  await expect(attendance).toHaveValue('went');
+  await page.goto(privateUrl);
   const feed = await page.request.get('/api/v1/events/?past=true&limit=100');
   expect(await feed.text()).not.toContain(title);
   const sitemap = await page.request.get('/sitemap.xml');
@@ -558,6 +791,13 @@ test('synthetic XLSX imports stay private, persist, and never leak to public pag
     ).toBeVisible();
     const own = await stranger.request.get('/api/v1/me/events/');
     expect((await own.json()).data).toEqual([]);
+    await stranger.goto('/saved/');
+    await stranger
+      .getByRole('button', { name: 'Archive', exact: true })
+      .click();
+    await expect(
+      stranger.getByRole('link', { name: `View ${title}`, exact: true })
+    ).toHaveCount(0);
   } finally {
     await strangerContext.close();
   }

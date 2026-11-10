@@ -90,6 +90,13 @@ It preserves accounts, sessions, follows, and private imports. Stop both service
 before restoring a protected pre-upgrade backup with a compatible app version.
 Do not reset the database or edit its schema-version marker to force a downgrade.
 
+Schema version 4 adds validated saved-concert attendance statuses in a transaction.
+Existing concert saves become Interested without changing accounts, sessions,
+bookmark timestamps, follows, or imported fields. Back up before upgrading and
+restart both web and worker processes so they use the same schema-aware code.
+An older app refuses a v4 database; use the protected pre-upgrade backup if a
+downgrade is necessary.
+
 ## Venue maps
 
 Concert details include OpenStreetMap venue pins with native pan and + / - zoom

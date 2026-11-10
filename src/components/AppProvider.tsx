@@ -18,13 +18,20 @@ import {
 } from '@tanstack/react-query';
 import { z } from 'zod';
 import { useRouter } from 'next/navigation';
-import type { SavedItem, User } from '@/types';
+import type { SavedConcertStatus, SavedItem, User } from '@/types';
 import { apiData, ApiError } from '@/lib/api';
 import { savedItemSchema, userSchema } from '@/lib/schema';
 
 const SAVES_KEY = 'find-concerts-saved';
 const SAVES_EVENT = 'concerts-saves-changed';
 const savesSchema = z.array(savedItemSchema);
+
+interface SavedChange {
+  type: SavedItem['type'];
+  id: string;
+  saved: boolean;
+  status?: SavedConcertStatus;
+}
 
 function subscribe(listener: () => void) {
   window.addEventListener('storage', listener);
@@ -58,6 +65,7 @@ interface AppContextValue {
   notice: string | null;
   dismissNotice: () => void;
   toggleSaved: (type: SavedItem['type'], id: string) => Promise<void>;
+  setSavedStatus: (id: string, status: SavedConcertStatus) => Promise<boolean>;
   signIn: (
     username: string,
     password: string,
@@ -108,56 +116,90 @@ function AppState({ children }: { children: React.ReactNode }) {
   });
   const saves = user ? savedQuery.data || [] : local.saves;
   const mutation = useMutation({
-    mutationFn: (input: {
-      type: SavedItem['type'];
-      id: string;
-      saved: boolean;
-    }) =>
+    mutationFn: (input: SavedChange & { accountId: string }) =>
       apiData('/me/saved', savesSchema, {
         method: 'PUT',
-        body: JSON.stringify(input),
+        body: JSON.stringify({
+          type: input.type,
+          id: input.id,
+          saved: input.saved,
+          status: input.status,
+        }),
       }),
-    onSuccess: (items) => {
-      client.setQueryData(['saves', user?.id], items);
+    onSuccess: (items, input) => {
+      if (client.getQueryData<User | null>(['session'])?.id !== input.accountId)
+        return;
+      client.setQueryData(['saves', input.accountId], items);
       void client.invalidateQueries({ queryKey: ['page'] });
       void client.invalidateQueries({
-        queryKey: ['data', user?.id, '/notifications'],
+        queryKey: ['data', input.accountId, '/notifications'],
       });
     },
   });
 
-  const toggleSaved = async (type: SavedItem['type'], id: string) => {
+  const changeSaved = async (input: SavedChange): Promise<boolean> => {
     setNotice(null);
-    const exists = saves.some((item) => item.id === id && item.type === type);
     if (user) {
       try {
-        await mutation.mutateAsync({ type, id, saved: !exists });
+        await mutation.mutateAsync({ ...input, accountId: user.id });
+        return true;
       } catch (error) {
         setNotice(
           error instanceof Error
             ? error.message
             : 'The item could not be saved.'
         );
+        return false;
       }
     } else {
       if (local.error) {
         setNotice(local.error);
-        return;
+        return false;
       }
-      const next = exists
-        ? saves.filter((item) => !(item.id === id && item.type === type))
-        : [...saves, { type, id, addedAt: new Date().toISOString() }];
+      const matches = (item: SavedItem) =>
+        item.id === input.id && item.type === input.type;
+      const existing = saves.find(matches);
+      const item: SavedItem = {
+        id: input.id,
+        type: input.type,
+        addedAt: existing?.addedAt ?? new Date().toISOString(),
+        ...(input.type === 'event'
+          ? {
+              status: input.status ?? existing?.status ?? 'interested',
+            }
+          : {}),
+      };
+      const next = !input.saved
+        ? saves.filter((item) => !matches(item))
+        : existing
+          ? saves.map((current) => (matches(current) ? item : current))
+          : [...saves, item];
       try {
         localStorage.setItem(SAVES_KEY, JSON.stringify(next));
         window.dispatchEvent(new Event(SAVES_EVENT));
+        return true;
       } catch (error) {
         console.error('Local save failed', error);
         setNotice(
-          'The item could not be saved. Allow browser storage or sign in to save it to your account.'
+          input.status
+            ? 'The concert status could not be saved. Allow browser storage or sign in to save it to your account.'
+            : 'The item could not be saved. Allow browser storage or sign in to save it to your account.'
         );
+        return false;
       }
     }
   };
+
+  const toggleSaved = async (type: SavedItem['type'], id: string) => {
+    await changeSaved({
+      type,
+      id,
+      saved: !saves.some((item) => item.id === id && item.type === type),
+    });
+  };
+
+  const setSavedStatus = (id: string, status: SavedConcertStatus) =>
+    changeSaved({ type: 'event', id, saved: true, status });
 
   const refreshSession = useCallback(async () => {
     await client.invalidateQueries({ queryKey: ['session'] });
@@ -312,6 +354,7 @@ function AppState({ children }: { children: React.ReactNode }) {
           (!user ? local.error : null),
         dismissNotice: () => setNotice(null),
         toggleSaved,
+        setSavedStatus,
         signIn,
         signOut,
         changePassword,

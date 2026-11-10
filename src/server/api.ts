@@ -7,6 +7,7 @@ import {
   collectTours,
   collectVenues,
   filterEvents,
+  filterSavedEvents,
   isUpcoming,
   recommendEvents,
   sortEvents,
@@ -37,6 +38,7 @@ import {
 import {
   eventSchema,
   profileUpdateSchema,
+  savedConcertStatusSchema,
   searchFiltersSchema,
 } from '@/lib/schema';
 import { sourceStatuses } from './scraper';
@@ -53,6 +55,10 @@ const pagination = searchFiltersSchema.safeExtend({
   view: z.enum(['all', 'trending']).optional(),
   ids: z.string().max(6000).optional(),
   today: z.iso.date().optional(),
+});
+
+const savedPagination = pagination.safeExtend({
+  status: savedConcertStatusSchema.optional(),
 });
 
 function data(value: unknown, status = 200, headers?: HeadersInit): Response {
@@ -417,15 +423,23 @@ async function route(request: Request, store: ConcertStore): Promise<Response> {
     return data(store.saves(requireUser(request, store).id));
   if (path === 'me/saved-events' && method === 'GET') {
     const user = requireUser(request, store);
-    const events = store
-      .saves(user.id)
+    const saves = store.saves(user.id);
+    const events = saves
       .filter((item) => item.type === 'event')
       .flatMap((item) => {
         const event = store.event(item.id, user.id);
         return event ? [event] : [];
       });
-    const filters = query();
-    return eventPage(events, filters);
+    const filters = savedPagination.parse(Object.fromEntries(url.searchParams));
+    const archive = filters.period === 'past';
+    if (archive) {
+      events.push(...store.events(user.id, true));
+      filters.sort ||= 'date_desc';
+    }
+    return eventPage(
+      filterSavedEvents(events, saves, filters.status, archive),
+      filters
+    );
   }
   if (path === 'me/saved' && method === 'PUT') {
     const user = requireUser(request, store);
@@ -434,7 +448,16 @@ async function route(request: Request, store: ConcertStore): Promise<Response> {
         type: z.enum(['event', 'artist', 'venue']),
         id: z.string().min(1).max(1500),
         saved: z.boolean(),
+        status: savedConcertStatusSchema.optional(),
       })
+      .refine(
+        (input) =>
+          input.status === undefined || (input.type === 'event' && input.saved),
+        {
+          message: 'Set an attendance status only when saving a concert.',
+          path: ['status'],
+        }
+      )
       .parse(await json(request));
     const events = [
       ...store.events(null, true),
@@ -454,7 +477,7 @@ async function route(request: Request, store: ConcertStore): Promise<Response> {
         'SAVE_TARGET_NOT_FOUND',
         'The concert, artist, or venue is no longer available.'
       );
-    store.setSaved(user.id, input.type, input.id, input.saved);
+    store.setSaved(user.id, input.type, input.id, input.saved, input.status);
     return data(store.saves(user.id));
   }
   if (path === 'imports/preview' && method === 'POST') {

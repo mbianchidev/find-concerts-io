@@ -1,10 +1,14 @@
-export function formatDate(value: string, short = false): string {
+export function formatDate(
+  value: string,
+  short = false,
+  includeYear = !short
+): string {
   const date = new Date(`${value.slice(0, 10)}T12:00:00Z`);
   if (!Number.isFinite(date.getTime())) return 'Date to be announced';
   return date.toLocaleDateString('en-GB', {
     day: 'numeric',
     month: short ? 'short' : 'long',
-    ...(short ? {} : { year: 'numeric' }),
+    ...(includeYear ? { year: 'numeric' } : {}),
     timeZone: 'UTC',
   });
 }

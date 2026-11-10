@@ -26,9 +26,10 @@ City options include persistent public venues, even with no upcoming concerts.
 | `/cities`                             | GET               | Public city facet; never includes private import locations                              |
 | `/me/cities`                          | GET               | Public cities plus the signed-in owner's explicitly mapped private cities               |
 | `/sources`                            | GET               | Venue collection status and errors                                                      |
-| `/me/events`, `/me/saved-events`      | GET               | Private history / saved public and private concerts                                     |
+| `/me/events`                          | GET               | Owned private concert imports                                                           |
+| `/me/saved-events`                    | GET               | Saved public/private concerts; `period=past` also includes owned past imports           |
 | `/me/recommendations`                 | GET               | Account-specific public recommendations                                                 |
-| `/me/saved`                           | GET, PUT          | `{ type: event/artist/venue, id, saved: boolean }`                                      |
+| `/me/saved`                           | GET, PUT          | `{ type: event/artist/venue, id, saved: boolean, status? }`                             |
 | `/imports/preview`                    | POST              | Owner-only multipart `file`                                                             |
 | `/imports`                            | POST, GET         | Multipart `file` and JSON `mappings`; recent reports                                    |
 | `/notifications`                      | GET, PATCH        | Inbox; mark one `{ id }` or all `{}` as read                                            |
@@ -86,6 +87,22 @@ excluded from its own counts so users can switch venues without clearing it.
 Other filters, including date period/range, city, artist, and genre, remain active.
 Private facets are owner-scoped. The independent venue directory still retains
 followable venues without concerts.
+
+Saved concert entries include a private `status`: `interested`, `going`, `went`,
+or `not_going`. Existing saves default to `interested`. `PUT /me/saved` accepts
+`status` only with `type=event` and `saved=true`; it updates an existing bookmark
+without changing `addedAt`, or saves the concert with that status. Omitting status
+preserves an existing choice. Follows and removals must not include status.
+Unknown values return 422, and unavailable or unauthorized save targets return 404.
+
+`GET /me/saved-events?period=past&status=went&today=YYYY-MM-DD` selects the archive.
+The `status` filter is optional. This view combines saved concerts and all owned
+private imports, deduplicates them, filters date/status before pagination, and
+defaults to `sort=date_desc`. Unbookmarked imports have no personal status and
+appear only with all statuses until marked. They keep their original workbook
+fields. Normal saved lists remain all saved concerts, with date-ascending order.
+The public concert's `status` field remains its scheduled/cancelled state; personal
+statuses appear only in authenticated saved responses and account exports.
 
 Venue records may include `genres`, `source_url`, and an optional venue-website `url`.
 Their stable IDs also validate follows when `event_count` is zero. City, location,

@@ -5,6 +5,7 @@ import { ConcertStore } from '../src/server/store';
 import { concert } from './fixtures';
 import { venueKey } from '../src/lib/concerts';
 import { sessionCookie } from '../src/server/auth';
+import { savedItemSchema } from '../src/lib/schema';
 
 const origin = 'http://localhost:3000';
 
@@ -433,6 +434,260 @@ test('similar concert lists honor the same city filter as discovery', async () =
     const result = await response.json();
     assert.equal(result.meta.total, 1);
     assert.equal(result.data[0].id, 'synthetic-elsewhere');
+  } finally {
+    store.close();
+  }
+});
+
+test('personal statuses filter a past archive of saved shows and owned imports before pagination', async () => {
+  const store = new ConcertStore(':memory:');
+  try {
+    const owner = store.createUser('synthetic-archive-owner', 'synthetic-hash');
+    const other = store.createUser('synthetic-archive-other', 'synthetic-hash');
+    const cookie = sessionCookie(store, owner.id).split(';')[0];
+    store.upsertPublic([
+      concert({ id: 'past-went', datetime: '2000-04-03' }),
+      concert({ id: 'past-considered', datetime: '2001-04-03' }),
+      concert({ id: 'future-show', datetime: '2099-04-03' }),
+      concert({ id: 'today-show', datetime: '2027-01-15' }),
+      concert({
+        id: 'ongoing-show',
+        datetime: '2027-01-14',
+        end_datetime: '2027-01-17',
+      }),
+      concert({ id: 'undated-show', datetime: null }),
+      concert({ id: 'never-saved', datetime: '1999-04-03' }),
+    ]);
+    const history = {
+      events: [
+        concert({
+          id: 'synthetic-imported-history',
+          datetime: '2002-04-03',
+          import_details: {
+            sheet: 'Synthetic history',
+            row: 2,
+            fields: { Status: 'Original synthetic wording' },
+            status: 'Original synthetic wording',
+          },
+        }),
+        concert({ id: 'synthetic-future-import', datetime: '2099-06-03' }),
+      ],
+      report: { total: 2, imported: 0, duplicates: 0, skipped: 0, issues: [] },
+    };
+    store.importEvents(owner.id, history);
+    store.importEvents(other.id, history);
+    const privateId = store
+      .events(owner.id, true)
+      .find((event) => event.datetime === '2002-04-03')!.id;
+    for (const [id, status] of [
+      ['past-went', 'went'],
+      ['past-considered', 'interested'],
+      ['future-show', 'going'],
+      ['today-show', 'interested'],
+      ['ongoing-show', 'going'],
+      ['undated-show', 'interested'],
+    ]) {
+      const saved = await handleApi(
+        request(
+          '/me/saved',
+          'PUT',
+          {
+            type: 'event',
+            id,
+            saved: true,
+            status,
+          },
+          cookie
+        ),
+        store
+      );
+      assert.equal(saved.status, 200);
+      const item = (await saved.json()).data.find(
+        (value: { id: string }) => value.id === id
+      );
+      assert.equal(savedItemSchema.parse(item).status, status);
+    }
+    store.setSaved(other.id, 'event', 'past-went', true, 'not_going');
+    const first = await handleApi(
+      request(
+        '/me/saved-events?period=past&today=2027-01-15&limit=1',
+        'GET',
+        undefined,
+        cookie
+      ),
+      store
+    );
+    const archive = await first.json();
+    assert.equal(first.status, 200);
+    assert.equal(archive.meta.total, 3);
+    assert.equal(archive.meta.has_next, true);
+    assert.equal(archive.data[0].id, privateId);
+    const second = await handleApi(
+      request(
+        '/me/saved-events?period=past&today=2027-01-15&limit=1&page=2',
+        'GET',
+        undefined,
+        cookie
+      ),
+      store
+    );
+    assert.equal((await second.json()).data[0].id, 'past-considered');
+    const filtered = await handleApi(
+      request(
+        '/me/saved-events?period=past&today=2027-01-15&status=went',
+        'GET',
+        undefined,
+        cookie
+      ),
+      store
+    );
+    const went = await filtered.json();
+    assert.equal(went.meta.total, 1);
+    assert.equal(went.data[0].id, 'past-went');
+    const saved = await handleApi(
+      request('/me/saved-events', 'GET', undefined, cookie),
+      store
+    );
+    assert.equal((await saved.json()).meta.total, 6);
+    assert.equal(store.saves(other.id)[0].status, 'not_going');
+
+    await handleApi(
+      request(
+        '/me/saved',
+        'PUT',
+        {
+          type: 'event',
+          id: privateId,
+          saved: true,
+          status: 'went',
+        },
+        cookie
+      ),
+      store
+    );
+    const updated = await handleApi(
+      request(
+        '/me/saved-events?period=past&today=2027-01-15&status=went',
+        'GET',
+        undefined,
+        cookie
+      ),
+      store
+    );
+    assert.equal((await updated.json()).meta.total, 2);
+    assert.equal(
+      store.event(privateId, owner.id)?.import_details?.status,
+      'Original synthetic wording'
+    );
+    const exported = await handleApi(
+      request('/me/export', 'GET', undefined, cookie),
+      store
+    );
+    assert.equal(
+      (await exported.json()).saved.find(
+        (item: { id: string }) => item.id === privateId
+      ).status,
+      'went'
+    );
+    const publicFeed = await handleApi(
+      request('/events?period=past&today=2027-01-15'),
+      store
+    );
+    const publicData = await publicFeed.json();
+    assert.ok(
+      publicData.data.every(
+        (event: { status: string; is_private?: boolean }) =>
+          event.status === 'scheduled' && !event.is_private
+      )
+    );
+    assert.equal(
+      (await handleApi(request('/me/saved-events?period=past'), store)).status,
+      401
+    );
+  } finally {
+    store.close();
+  }
+});
+
+test('invalid or unauthorized attendance changes leave existing concert plans untouched', async () => {
+  const store = new ConcertStore(':memory:');
+  try {
+    const owner = store.createUser('synthetic-plan-owner', 'synthetic-hash');
+    const other = store.createUser('synthetic-plan-other', 'synthetic-hash');
+    const cookie = sessionCookie(store, owner.id).split(';')[0];
+    store.upsertPublic([concert()]);
+    store.setSaved(owner.id, 'event', 'synthetic-show', true, 'going');
+    store.importEvents(other.id, {
+      events: [concert()],
+      report: { total: 1, imported: 0, duplicates: 0, skipped: 0, issues: [] },
+    });
+    const privateId = store.events(other.id, true)[0].id;
+    for (const input of [
+      {
+        type: 'event',
+        id: 'synthetic-show',
+        saved: true,
+        status: 'invented-status',
+      },
+      { type: 'artist', id: 'mock support', saved: true, status: 'went' },
+      { type: 'event', id: 'synthetic-show', saved: false, status: 'went' },
+    ]) {
+      const response = await handleApi(
+        request('/me/saved', 'PUT', input, cookie),
+        store
+      );
+      assert.equal(response.status, 422);
+    }
+    const unavailable = await handleApi(
+      request(
+        '/me/saved',
+        'PUT',
+        {
+          type: 'event',
+          id: privateId,
+          saved: true,
+          status: 'went',
+        },
+        cookie
+      ),
+      store
+    );
+    assert.equal(unavailable.status, 404);
+    const crossOrigin = await handleApi(
+      request(
+        '/me/saved',
+        'PUT',
+        {
+          type: 'event',
+          id: 'synthetic-show',
+          saved: true,
+          status: 'went',
+        },
+        cookie,
+        'https://other.example.test'
+      ),
+      store
+    );
+    assert.equal(crossOrigin.status, 403);
+    assert.equal(
+      (
+        await handleApi(
+          request('/me/saved-events?status=unknown', 'GET', undefined, cookie),
+          store
+        )
+      ).status,
+      422
+    );
+    assert.throws(
+      () =>
+        store.db
+          .prepare('UPDATE saved SET status = ? WHERE user_id = ?')
+          .run('invented-status', owner.id),
+      /CHECK constraint failed/
+    );
+    assert.equal(store.saves(owner.id).length, 1);
+    assert.equal(store.saves(owner.id)[0].status, 'going');
+    assert.deepEqual(store.saves(other.id), []);
   } finally {
     store.close();
   }
