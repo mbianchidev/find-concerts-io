@@ -1,6 +1,6 @@
 'use client';
 
-import { useId } from 'react';
+import { useEffect, useId, useRef } from 'react';
 import type { SavedConcertStatus } from '@/types';
 import { SAVED_CONCERT_STATUS_LABELS } from '@/lib/concerts';
 import { savedConcertStatusSchema } from '@/lib/schema';
@@ -18,7 +18,14 @@ export default function ConcertStatusSelect({
   onStatusSaved,
 }: ConcertStatusSelectProps) {
   const id = useId();
+  const control = useRef<HTMLSelectElement>(null);
+  const restoreFocus = useRef(false);
   const { saves, setSavedStatus, ready, pending } = useApp();
+  useEffect(() => {
+    if (pending || !restoreFocus.current) return;
+    if (document.activeElement === document.body) control.current?.focus();
+    restoreFocus.current = false;
+  });
   const saved = saves.find(
     (item) => item.type === 'event' && item.id === eventId
   );
@@ -29,9 +36,11 @@ export default function ConcertStatusSelect({
       </label>
       <select
         id={id}
+        ref={control}
         value={saved?.status ?? ''}
         disabled={!ready || pending}
         onChange={async (event) => {
+          restoreFocus.current = document.activeElement === event.currentTarget;
           const status = savedConcertStatusSchema.parse(
             event.currentTarget.value
           );

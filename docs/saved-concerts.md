@@ -22,6 +22,8 @@ Guest saves and statuses stay in this browser, survive reloads, and are not
 silently uploaded on sign-in. Guest lists filter and sort all available saved
 shows before pagination. Missing older public listings cannot be displayed.
 Blocked storage or failed updates show an error and keep the last saved status.
+Keyboard focus returns to the status control for retries, or to the status
+filter when a changed concert no longer matches it.
 
 Personal statuses never change the public concert's scheduled/cancelled status
 and are not published in feeds, calendar links, analytics, or provider requests.

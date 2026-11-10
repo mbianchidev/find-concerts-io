@@ -69,10 +69,12 @@ export default function VenueMap({
           <button
             type="button"
             className="button"
-            disabled={lookup.isPending}
+            aria-disabled={lookup.isPending}
+            aria-busy={lookup.isPending}
             aria-expanded={open}
             aria-controls={`${id}-map`}
             onClick={() => {
+              if (lookup.isPending) return;
               if (open) setOpen(false);
               else if (point) setOpen(true);
               else lookup.mutate();

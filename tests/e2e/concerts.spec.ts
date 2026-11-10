@@ -364,9 +364,14 @@ test('missing venue coordinates have a recoverable lookup error without showing 
   page,
 }) => {
   let lookups = 0;
+  let releaseFirstResponse!: () => void;
+  const firstResponse = new Promise<void>((resolve) => {
+    releaseFirstResponse = resolve;
+  });
   await page.route(/\/api\/v1\/events\/[^/]+\/location\/?$/, async (route) => {
     lookups++;
     if (lookups === 1) {
+      await firstResponse;
       await route.fulfill({
         status: 503,
         json: {
@@ -398,6 +403,18 @@ test('missing venue coordinates have a recoverable lookup error without showing 
   });
   await show.focus();
   await page.keyboard.press('Enter');
+  try {
+    const finding = page.getByRole('button', {
+      name: 'Finding venue...',
+      exact: true,
+    });
+    await expect(finding).toHaveAttribute('aria-busy', 'true');
+    await expect(finding).toBeFocused();
+    await page.keyboard.press('Enter');
+    expect(lookups).toBe(1);
+  } finally {
+    releaseFirstResponse();
+  }
   await expect(
     page
       .getByRole('alert')
@@ -441,8 +458,13 @@ test('saved concert statuses persist, filter the list, and recover from a reject
   await expect(status).toHaveValue('going');
 
   const savedPath = '**/api/v1/me/saved/';
-  await page.route(savedPath, (route) =>
-    route.fulfill({
+  let releaseRejectedStatus!: () => void;
+  const rejectedStatus = new Promise<void>((resolve) => {
+    releaseRejectedStatus = resolve;
+  });
+  await page.route(savedPath, async (route) => {
+    await rejectedStatus;
+    await route.fulfill({
       status: 503,
       json: {
         error: {
@@ -450,15 +472,22 @@ test('saved concert statuses persist, filter the list, and recover from a reject
           message: 'Status was not saved. Try again.',
         },
       },
-    })
-  );
-  await status.selectOption('not_going');
+    });
+  });
+  await status.focus();
+  try {
+    await status.selectOption('not_going');
+    await expect(status).toBeDisabled();
+  } finally {
+    releaseRejectedStatus();
+  }
   await expect(
     page
       .getByRole('alert')
       .filter({ hasText: 'Status was not saved. Try again.' })
   ).toBeVisible();
   await expect(status).toHaveValue('going');
+  await expect(status).toBeFocused();
   await page.unroute(savedPath);
   const notGoingSaved = page.waitForResponse(
     (response) =>
