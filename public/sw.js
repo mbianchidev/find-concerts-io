@@ -1,4 +1,4 @@
-const CACHE = 'find-concerts-public-shell-v1';
+const CACHE = 'find-concerts-public-shell-v2';
 const scope = new URL(self.registration.scope);
 const offline = new URL('offline.html', scope).href;
 
@@ -6,7 +6,13 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches
       .open(CACHE)
-      .then((cache) => cache.addAll([offline, new URL('mark.svg', scope).href]))
+      .then((cache) =>
+        cache.addAll([
+          offline,
+          new URL('mark.svg', scope).href,
+          new URL('apple-touch-icon.png', scope).href,
+        ])
+      )
   );
 });
 self.addEventListener('activate', (event) => {
@@ -57,7 +63,7 @@ self.addEventListener('push', (event) => {
       await self.registration.showNotification(data.title, {
         body: data.body,
         tag: data.tag,
-        icon: new URL('mark.svg', scope).href,
+        icon: new URL('apple-touch-icon.png', scope).href,
         data: { url: url.href },
       });
     })()

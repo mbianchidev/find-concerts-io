@@ -205,6 +205,48 @@ test('advanced venue choices show counts for the applied filters and exclude emp
   );
 });
 
+test('mosher branding loads from the shared mark and a valid home-screen icon', async ({
+  page,
+}) => {
+  await page.goto('/');
+  const logo = page
+    .getByRole('link', { name: 'Find Concerts home' })
+    .locator('img');
+  await expect(logo).toBeVisible();
+  await expect
+    .poll(() =>
+      logo.evaluate(
+        (image) =>
+          image instanceof HTMLImageElement &&
+          image.complete &&
+          image.naturalWidth > 0
+      )
+    )
+    .toBe(true);
+  const icons = await page.evaluate(async () => {
+    const mark = document.querySelector<HTMLImageElement>('.brand-mark img');
+    const favicon = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
+    const apple = document.querySelector<HTMLLinkElement>(
+      'link[rel="apple-touch-icon"]'
+    );
+    if (!mark || !favicon || !apple)
+      throw new Error('Branding assets are missing.');
+    const image = new Image();
+    image.src = apple.href;
+    await image.decode();
+    return {
+      sharedMark: mark.currentSrc === favicon.href,
+      homeScreenWidth: image.naturalWidth,
+      homeScreenHeight: image.naturalHeight,
+    };
+  });
+  expect(icons).toEqual({
+    sharedMark: true,
+    homeScreenWidth: 180,
+    homeScreenHeight: 180,
+  });
+});
+
 test('dark mode is the default even on light systems, persists, and synchronizes between tabs', async ({
   page,
   context,

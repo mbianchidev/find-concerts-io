@@ -218,11 +218,14 @@ label {
 .brand-mark {
   width: 40px;
   height: 44px;
-  background: var(--action);
-  color: white;
   display: grid;
   place-items: center;
-  border-radius: 6px;
+  flex-shrink: 0;
+}
+.brand-mark img {
+  display: block;
+  width: 100%;
+  height: auto;
 }
 .brand-caption {
   display: block;

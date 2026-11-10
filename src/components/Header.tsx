@@ -1,11 +1,14 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useRef, useState } from 'react';
 import { useApp } from './AppProvider';
 import Icon from './Icon';
 import ThemeToggle from './ThemeToggle';
+
+const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH || '';
 
 const links = [
   { href: '/', label: 'Discover' },
@@ -44,19 +47,15 @@ export default function Header() {
           onClick={() => setOpen(false)}
         >
           <span className="brand-mark">
-            <svg
-              viewBox="0 0 32 32"
-              width="26"
-              height="26"
-              fill="none"
+            <Image
+              src={`${BASE_PATH}/mark.svg`}
+              alt=""
               aria-hidden="true"
-            >
-              <path
-                d="M6 10v12M12 5v22M18 10v12M24 7v18"
-                stroke="currentColor"
-                strokeWidth="3"
-              />
-            </svg>
+              width={40}
+              height={40}
+              loading="eager"
+              unoptimized
+            />
           </span>
           <span>
             FIND CONCERTS

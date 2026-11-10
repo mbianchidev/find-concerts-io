@@ -90,6 +90,13 @@ It preserves accounts, sessions, follows, and private imports. Stop both service
 before restoring a protected pre-upgrade backup with a compatible app version.
 Do not reset the database or edit its schema-version marker to force a downgrade.
 
+## Brand assets
+
+`public/mark.svg` is the source artwork for the header and favicon. Home-screen
+and notification icons use its 180x180 PNG counterpart,
+`public/apple-touch-icon.png`. Keep both assets in sync when changing the mark,
+and bump the public-shell cache version in `public/sw.js`.
+
 ## Verification
 
 ```bash

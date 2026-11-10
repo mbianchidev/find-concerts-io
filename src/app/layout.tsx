@@ -7,6 +7,8 @@ import Telemetry from '@/components/Telemetry';
 import { THEME_COLORS, THEME_SCRIPT } from '@/lib/theme';
 import './globals.css';
 
+const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH || '';
+
 export const metadata: Metadata = {
   title: {
     default: 'Find Concerts IO',
@@ -22,7 +24,18 @@ export const metadata: Metadata = {
     'live music',
   ],
   referrer: 'no-referrer',
-  icons: { icon: '/mark.svg', apple: '/mark.svg' },
+  icons: {
+    icon: {
+      url: `${BASE_PATH}/mark.svg`,
+      type: 'image/svg+xml',
+      sizes: 'any',
+    },
+    apple: {
+      url: `${BASE_PATH}/apple-touch-icon.png`,
+      type: 'image/png',
+      sizes: '180x180',
+    },
+  },
 };
 
 export const viewport: Viewport = {
